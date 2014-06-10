@@ -60,6 +60,6 @@ C:\PS> ./PEchecker.ps1 -directory C:\Windows\System32\ -recursive | Format-List
 ```
 Links
 
-https://github.com/mattifestation/PowerSploit
-http://msdn.microsoft.com/en-us/library/windows/desktop/ms680336(v=vs.85).aspx
-http://msdn.microsoft.com/en-us/library/windows/desktop/ms680339(v=vs.85).aspx
+* https://github.com/mattifestation/PowerSploit
+* http://msdn.microsoft.com/en-us/library/windows/desktop/ms680336(v=vs.85).aspx
+* http://msdn.microsoft.com/en-us/library/windows/desktop/ms680339(v=vs.85).aspx
