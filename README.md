@@ -19,24 +19,24 @@ Check a directory for DLLs & EXEs recrusively
 C:\PS> ./PEchecker.ps1 -directory C:\Windows\System32\ -recursive
 ```
 ```
-Check for only DLLs & EXEs that are not compile with ASLR
+Check for only DLLs & EXEs that are not compiled with ASLR
 
 C:\PS> ./PEchecker.ps1 -directory C:\Windows\System32\ -recursive -OnlyNoASLR
 ```
 ```
-Check for only DLLs & EXEs that are not compile with DEP
+Check for only DLLs & EXEs that are not compiled with DEP
 
 C:\PS> ./PEchecker.ps1 -directory C:\Windows\System32\ -recursive -OnlyNoDEP
 ```
 ```
-Check for only DLLs & EXEs that are not compile with SafeSEH
+Check for only DLLs & EXEs that are not compiled with SafeSEH
 
 C:\PS> ./PEchecker.ps1 -directory C:\Windows\System32\ -recursive -OnlyNoSafeSEH
 ```
 ```
 Show results with full path names
 
-C:\PS> ./PEchecker.ps1 -directory C:\Windows\System32\ -recursive
+C:\PS> ./PEchecker.ps1 -directory C:\Windows\System32\ -recursive -FullPath
 ```
 ```
 Export results as a CSV
