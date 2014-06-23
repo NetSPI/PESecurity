@@ -470,6 +470,10 @@ function EnumerateFiles {
                 "NO_SEH" {$seh = $false}
             }
         }
+        
+        if($ARCH -eq "AMD64"){
+            $seh = "N/A"
+        }
 
         if($OnlyNoASLR -and $aslr -eq $false){
             $row = $table.NewRow()
