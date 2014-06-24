@@ -458,7 +458,7 @@ function EnumerateFiles {
     foreach($current_file in $files){
         $aslr = $false
         $dep = $false
-        $seh = $true
+        $seh = $false
 
         $NtHeader = GetNtHeader $current_file
         $ARCH = $NtHeader.FileHeader.Machine.toString()
@@ -467,7 +467,7 @@ function EnumerateFiles {
             switch($DllCharacteristic){
                 "DYNAMIC_BASE" {$aslr = $true}
                 "NX_COMPAT" {$dep = $true}
-                "NO_SEH" {$seh = $false}
+                "NO_SEH" {$seh = $true}
             }
         }
         
