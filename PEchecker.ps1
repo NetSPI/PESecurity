@@ -385,6 +385,30 @@ using System;
                 public uint      AddressOfNameOrdinals;
             }
 
+            [StructLayout(LayoutKind.Sequential)]
+            public struct _IMAGE_LOAD_CONFIG_DIRECTORY{
+                public uint   Size;
+                public uint   TimeDateStamp;
+                public ushort    MajorVersion;
+                public ushort    MinorVersion;
+                public uint   GlobalFlagsClear;
+                public uint   GlobalFlagsSet;
+                public uint   CriticalSectionDefaultTimeout;
+                public uint   DeCommitFreeBlockThreshold;
+                public uint   DeCommitTotalFreeThreshold;
+                public uint   LockPrefixTable;            // VA
+                public uint   MaximumAllocationSize;
+                public uint   VirtualMemoryThreshold;
+                public uint   ProcessHeapFlags;
+                public uint   ProcessAffinityMask;
+                public ushort    CSDVersion;
+                public ushort    Reserved1;
+                public uint   EditList;                   // VA
+                public uint   SecurityCookie;             // VA
+                public uint   SEHandlerTable;             // VA
+                public uint   SEHandlerCount;
+            }
+
             [StructLayout(LayoutKind.Sequential, Pack=1)]
             public struct _IMAGE_SECTION_HEADER
             {
@@ -432,9 +456,25 @@ using System;
 }
 "@
 
+#Get-PEHeader.ps1 Convert-RVAToFileOffset
+ function Convert-RVAToFileOffset([IntPtr] $Rva)
+    {
+
+        foreach ($Section in $SectionHeaders) {
+
+            if ((($Rva.ToInt64() - $PEBaseAddr.ToInt64()) -ge $Section.VirtualAddress) -and (($Rva.ToInt64() - $PEBaseAddr.ToInt64()) -lt ($Section.VirtualAddress + $Section.VirtualSize))) {
+                return [IntPtr] ($Rva.ToInt64() - ($Section.VirtualAddress - $Section.PointerToRawData))
+                Write-Host $Section
+            }
+        }
+
+        return $Rva
+
+    }
+
 function main {
 
-    Add-Type -TypeDefinition $code
+    Add-Type $code -passthru -WarningAction SilentlyContinue | Out-Null
 
     $files = GetFiles
     EnumerateFiles $files
@@ -460,19 +500,60 @@ function EnumerateFiles {
         $dep = $false
         $seh = $false
 
-        $NtHeader = GetNtHeader $current_file
+        $FileStream = New-Object System.IO.FileStream($current_file, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read)
+        $FileByteArray = New-Object Byte[]($FileStream.Length)
+        $FileStream.Read($FileByteArray, 0, $FileStream.Length) | Out-Null
+        $FileStream.Close()
+        $Handle = [System.Runtime.InteropServices.GCHandle]::Alloc($FileByteArray, 'Pinned')
+        $PEBaseAddr = $Handle.AddrOfPinnedObject()
+        $DosHeader = [System.Runtime.InteropServices.Marshal]::PtrToStructure($PEBaseAddr, [Type] [PE+_IMAGE_DOS_HEADER])
+        $PointerNtHeader = [IntPtr] ($PEBaseAddr.ToInt64() + $DosHeader.e_lfanew)
+        $NtHeader = [System.Runtime.InteropServices.Marshal]::PtrToStructure($PointerNtHeader, [Type] [PE+_IMAGE_NT_HEADERS32])
+        if($NtHeader.FileHeader.Machine.toString() -eq 'AMD64'){
+            $NtHeader = [System.Runtime.InteropServices.Marshal]::PtrToStructure($PointerNtHeader, [Type] [PE+_IMAGE_NT_HEADERS64])
+        } else {
+            $NtHeader = [System.Runtime.InteropServices.Marshal]::PtrToStructure($PointerNtHeader, [Type] [PE+_IMAGE_NT_HEADERS32])
+        }
         $ARCH = $NtHeader.FileHeader.Machine.toString()
         $DllCharacteristics = $NtHeader.OptionalHeader.DllCharacteristics.toString().Split(',').Trim()
         foreach($DllCharacteristic in $DllCharacteristics){
             switch($DllCharacteristic){
                 "DYNAMIC_BASE" {$aslr = $true}
                 "NX_COMPAT" {$dep = $true}
-                "NO_SEH" {$seh = $true}
+                "NO_SEH" {$seh = "N/A"}
             }
         }
-        
+
         if($ARCH -eq "AMD64"){
             $seh = "N/A"
+        } elseif ($seh -ne "N/A") {
+          $NumSections = $NtHeader.FileHeader.NumberOfSections
+          $PointerSectionHeader = [IntPtr] ($PointerNtHeader.ToInt64() + [System.Runtime.InteropServices.Marshal]::SizeOf([System.Type] [PE+_IMAGE_NT_HEADERS32]))
+          $SectionHeaders = New-Object PE+_IMAGE_SECTION_HEADER[]($NumSections)
+
+          foreach ($i in 0..($NumSections - 1))
+          {
+
+          $SectionHeaders[$i] = [System.Runtime.InteropServices.Marshal]::PtrToStructure(([System.IntPtr] ($PointerSectionHeader.ToInt64() + ($i * [System.Runtime.InteropServices.Marshal]::SizeOf([System.Type] [PE+_IMAGE_SECTION_HEADER])))), [System.Type] [PE+_IMAGE_SECTION_HEADER])
+
+           }
+          if($NtHeader.OptionalHeader.DataDirectory[10].VirtualAddress -eq $null){
+            $seh = $false
+          }
+          $ConfigPointer = [IntPtr] ($PEBaseAddr.ToInt64() + $NtHeader.OptionalHeader.DataDirectory[10].VirtualAddress)
+          $ConfigPointer = Convert-RVAToFileOffset $ConfigPointer $SectionHeaders $PEBaseAddr
+          [PE+_IMAGE_LOAD_CONFIG_DIRECTORY] $ConfigDirectory = [System.Runtime.InteropServices.Marshal]::PtrToStructure([IntPtr] $ConfigPointer, [System.Type] [PE+_IMAGE_LOAD_CONFIG_DIRECTORY])
+          if($ConfigDirectory.Size -lt 72){
+            $seh = $false
+          }
+          $SEHandlerTable = $ConfigDirectory.SEHandlerTable
+          $SEHandlerCount = $ConfigDirectory.SEHandlerCount
+          if($SEHandlerTable -ne 0 -and $SEHandlerCount -ne 0){
+            $seh = $true
+          }
+          if($SEHandlerTable -eq $null -or $SEHandlerCount -eq $null){
+            $seh = $false
+          }
         }
 
         if($OnlyNoASLR -and $aslr -eq $false){
@@ -532,6 +613,7 @@ function EnumerateFiles {
     $table
 }
 
+
 function GetFiles {
     $files = @()
 
@@ -556,25 +638,6 @@ function GetFilesFromDirectory {
         }
     }
     $files
-}
-
-function GetNtHeader  {
-
-    $FileStream = New-Object System.IO.FileStream($current_file, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read)
-    $FileByteArray = New-Object Byte[]($FileStream.Length)
-    $FileStream.Read($FileByteArray, 0, $FileStream.Length) | Out-Null
-    $FileStream.Close()
-    $Handle = [System.Runtime.InteropServices.GCHandle]::Alloc($FileByteArray, 'Pinned')
-    $PEBaseAddr = $Handle.AddrOfPinnedObject()
-    $DosHeader = [System.Runtime.InteropServices.Marshal]::PtrToStructure($PEBaseAddr, [Type] [PE+_IMAGE_DOS_HEADER])
-    $PointerNtHeader = [IntPtr] ($PEBaseAddr.ToInt64() + $DosHeader.e_lfanew)
-    $NtHeader = [System.Runtime.InteropServices.Marshal]::PtrToStructure($PointerNtHeader, [Type] [PE+_IMAGE_NT_HEADERS32])
-    if($NtHeader.FileHeader.Machine.toString() -eq 'AMD64'){
-        $NtHeader = [System.Runtime.InteropServices.Marshal]::PtrToStructure($PointerNtHeader, [Type] [PE+_IMAGE_NT_HEADERS64])
-    } else {
-        $NtHeader = [System.Runtime.InteropServices.Marshal]::PtrToStructure($PointerNtHeader, [Type] [PE+_IMAGE_NT_HEADERS32])
-    }
-    $NtHeader
 }
 
 main
