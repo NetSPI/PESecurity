@@ -61,9 +61,11 @@
         C:\PS> ./pechecker.ps1 -directory C:\Windows\System32\ -recursive | Format-List
 
     .LINK
-        https://github.com/mattifestation/PowerSploit
         http://msdn.microsoft.com/en-us/library/windows/desktop/ms680336(v=vs.85).aspx
         http://msdn.microsoft.com/en-us/library/windows/desktop/ms680339(v=vs.85).aspx
+        http://msdn.microsoft.com/en-us/library/windows/desktop/ms680328(v=vs.85).aspx
+        http://msdn.microsoft.com/en-us/library/9a89h429.aspx
+        https://github.com/mattifestation/PowerSploit
 #>
 
 param(
