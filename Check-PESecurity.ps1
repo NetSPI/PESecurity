@@ -8,57 +8,57 @@
     .EXAMPLE
         Check a single file
 
-        C:\PS> ./pechecker.ps1 -file C:\Windows\System32\kernel32.dll
+        C:\PS> ./Check-PESecurity.ps1 -file C:\Windows\System32\kernel32.dll
 
     .EXAMPLE
         Check a directory for DLLs & EXEs
 
-        C:\PS> ./pechecker.ps1 -directory C:\Windows\System32\
+        C:\PS> ./Check-PESecurity.ps1 -directory C:\Windows\System32\
 
     .EXAMPLE
         Check a directory for DLLs & EXEs recrusively
 
-        C:\PS> ./pechecker.ps1 -directory C:\Windows\System32\ -recursive
+        C:\PS> ./Check-PESecurity.ps1 -directory C:\Windows\System32\ -recursive
 
     .EXAMPLE
         Check for only DLLs & EXEs that are not compile with ASLR
 
-        C:\PS> ./pechecker.ps1 -directory C:\Windows\System32\ -recursive -OnlyNoASLR
+        C:\PS> ./Check-PESecurity.ps1 -directory C:\Windows\System32\ -recursive -OnlyNoASLR
 
     .EXAMPLE
         Check for only DLLs & EXEs that are not compile with DEP
 
-        C:\PS> ./pechecker.ps1 -directory C:\Windows\System32\ -recursive -OnlyNoDEP
+        C:\PS> ./Check-PESecurity.ps1 -directory C:\Windows\System32\ -recursive -OnlyNoDEP
 
     .EXAMPLE
         Check for only DLLs & EXEs that are not compile with SafeSEH
 
-        C:\PS> ./pechecker.ps1 -directory C:\Windows\System32\ -recursive -OnlyNoSafeSEH
+        C:\PS> ./Check-PESecurity.ps1 -directory C:\Windows\System32\ -recursive -OnlyNoSafeSEH
 
     .EXAMPLE
         Show results with full path names
 
-        C:\PS> ./pechecker.ps1 -directory C:\Windows\System32\ -recursive
+        C:\PS> ./Check-PESecurity.ps1 -directory C:\Windows\System32\ -recursive
 
     .EXAMPLE
         Export results as a CSV
 
-        C:\PS> ./pechecker.ps1 -directory C:\Windows\System32\ -recursive | Export-CSV file.csv
+        C:\PS> ./Check-PESecurity.ps1 -directory C:\Windows\System32\ -recursive | Export-CSV file.csv
 
     .EXAMPLE
         Show results in a table
 
-        C:\PS> ./pechecker.ps1 -directory C:\Windows\System32\ -recursive | Format-Table
+        C:\PS> ./Check-PESecurity.ps1 -directory C:\Windows\System32\ -recursive | Format-Table
 
     .EXAMPLE
         Show results in a table and sort by a column
 
-        C:\PS> ./pechecker.ps1 -directory C:\Windows\System32\ -recursive | Format-Table | sort ASLR
+        C:\PS> ./Check-PESecurity.ps1 -directory C:\Windows\System32\ -recursive | Format-Table | sort ASLR
 
     .EXAMPLE
         Show results in a list
 
-        C:\PS> ./pechecker.ps1 -directory C:\Windows\System32\ -recursive | Format-List
+        C:\PS> ./Check-PESecurity.ps1 -directory C:\Windows\System32\ -recursive | Format-List
 
     .LINK
         http://msdn.microsoft.com/en-us/library/windows/desktop/ms680336(v=vs.85).aspx
