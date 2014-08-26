@@ -489,18 +489,21 @@ function EnumerateFiles {
     $col2 = New-Object system.Data.DataColumn ARCH,([string])
     $col3 = New-Object system.Data.DataColumn ASLR,([string])
     $col4 = New-Object system.Data.DataColumn DEP,([string])
-    $col5 = New-Object system.Data.DataColumn SafeSEH,([string])
+    $col5 = New-Object system.Data.DataColumn StrongNaming,([string])
+    $col6 = New-Object system.Data.DataColumn SafeSEH,([string])
     $table.columns.add($col1)
     $table.columns.add($col2)
     $table.columns.add($col3)
     $table.columns.add($col4)
     $table.columns.add($col5)
+    $table.columns.add($col6)
 
 
     foreach($current_file in $files){
         $aslr = $false
         $dep = $false
         $seh = $false
+        $sn = $false
 
         $FileStream = New-Object System.IO.FileStream($current_file, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read)
         $FileByteArray = New-Object Byte[]($FileStream.Length)
@@ -525,6 +528,12 @@ function EnumerateFiles {
                 "NO_SEH" {$seh = "N/A"}
             }
         }
+        try {
+          $sn = [System.Reflection.AssemblyName]::GetAssemblyName($current_file).GetPublicKeyToken().Count -gt 0
+        } catch {
+          $sn = "N/A"
+        }
+
 
         if($ARCH -eq "AMD64"){
             $seh = "N/A"
@@ -569,6 +578,7 @@ function EnumerateFiles {
             $row.ARCH = $ARCH
             $row.ASLR = $aslr
             $row.DEP = $dep
+            $row.StrongNaming = $sn
             $row.SafeSEH = $seh
             $table.Rows.Add($row)
         }elseif($OnlyNoDEP -and $dep -eq $false){
@@ -582,6 +592,7 @@ function EnumerateFiles {
             $row.ARCH = $ARCH
             $row.ASLR = $aslr
             $row.DEP = $dep
+            $row.StrongNaming = $sn
             $row.SafeSEH = $seh
             $table.Rows.Add($row)
         }elseif($OnlyNoSafeSEH -and $seh -eq $false){
@@ -595,6 +606,7 @@ function EnumerateFiles {
             $row.ARCH = $ARCH
             $row.ASLR = $aslr
             $row.DEP = $dep
+            $row.StrongNaming = $sn
             $row.SafeSEH = $seh
             $table.Rows.Add($row)
         }elseif($OnlyNoASLR -eq $false -and $OnlyNoDEP -eq $false -and $OnlyNoSafeSEH -eq $false){
@@ -608,6 +620,7 @@ function EnumerateFiles {
             $row.ARCH = $ARCH
             $row.ASLR = $aslr
             $row.DEP = $dep
+            $row.StrongNaming = $sn
             $row.SafeSEH = $seh
             $table.Rows.Add($row)
         }
