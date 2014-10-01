@@ -1,37 +1,54 @@
-﻿function Get-PESecurity
+﻿<#
+# Author: Eric Gruber 2014, NetSPI
+.Synopsis
+   Updated module for pull security information from compiled Windows binaries. 
+.EXAMPLE
+   Get-PESecurity -File C:\Windows\System32\cmd.exe
+.EXAMPLE
+   Get-PESecurity -Directory C:\Windows\System32\
+#>
+
+function Get-PESecurity
 {
-	[CmdletBinding()]
-	Param
-	(
-		# Directory to scan
-		[Parameter(Mandatory=$false,
-			ValueFromPipelineByPropertyName=$true,
-			Position=0)]
-		[String]$Directory,
-
-		# File to scan
-		[Parameter(Mandatory=$false,
-			ValueFromPipelineByPropertyName=$true,
-			Position=0)]
-		[String]$File
-	)
-
-	Begin
-	{
-        $ModuleName = 'Win32'
-        $DynAssembly = New-Object Reflection.AssemblyName($ModuleName)
-        $Domain = [AppDomain]::CurrentDomain
-        $AssemblyBuilder = $Domain.DefineDynamicAssembly($DynAssembly, 'Run')
-        $Mod = $AssemblyBuilder.DefineDynamicModule($ModuleName, $False)
-
-        $ImageDosSignature = enumerate $Mod PE.IMAGE_DOS_SIGNATURE UInt16 @{
+  [CmdletBinding()]
+  Param
+  (
+    # Directory to scan
+    [Parameter(Mandatory=$false,
+        ValueFromPipelineByPropertyName=$true,
+    Position=0)]
+    [String]$Directory,
+    
+    # File to scan
+    [Parameter(Mandatory=$false,
+        ValueFromPipelineByPropertyName=$true,
+    Position=0)]
+    [String]$File,
+    
+    #Recursive flag
+    [Parameter(Mandatory=$false,
+        ValueFromPipelineByPropertyName=$false,
+    Position=0)]
+    [Switch]$Recursive
+    
+  )
+  
+  Begin
+  {
+    $ModuleName = 'Win32'
+    $DynAssembly = New-Object Reflection.AssemblyName($ModuleName)
+    $Domain = [AppDomain]::CurrentDomain
+    $AssemblyBuilder = $Domain.DefineDynamicAssembly($DynAssembly, 'Run')
+    $Mod = $AssemblyBuilder.DefineDynamicModule($ModuleName, $False)
+    
+    $ImageDosSignature = enumerate $Mod PE.IMAGE_DOS_SIGNATURE UInt16 @{
 			DOS_SIGNATURE = 0x5A4D
 			OS2_SIGNATURE = 0x454E
 			OS2_SIGNATURE_LE = 0x454C
 			VXD_SIGNATURE = 0x454C
 		}
-
-		$ImageFileMachine = enumerate $Mod PE.IMAGE_FILE_MACHINE UInt16 @{
+    
+    $ImageFileMachine = enumerate $Mod PE.IMAGE_FILE_MACHINE UInt16 @{
 			UNKNOWN = 0x0000
 			I386 = 0x014C # Intel 386.
 			R3000 = 0x0162 # MIPS little-endian =0x160 big-endian
@@ -62,8 +79,8 @@
 			M32R = 0x9041 # M32R little-endian
 			CEE = 0xC0EE
 		}
-
-		$ImageFileCharacteristics = enumerate $Mod PE.IMAGE_FILE_CHARACTERISTICS UInt16 @{
+    
+    $ImageFileCharacteristics = enumerate $Mod PE.IMAGE_FILE_CHARACTERISTICS UInt16 @{
 			IMAGE_RELOCS_STRIPPED = 0x0001 # Relocation info stripped from file.
 			IMAGE_EXECUTABLE_IMAGE = 0x0002 # File is executable  (i.e. no unresolved external references).
 			IMAGE_LINE_NUMS_STRIPPED = 0x0004 # Line nunbers stripped from file.
@@ -80,17 +97,17 @@
 			IMAGE_UP_SYSTEM_ONLY = 0x4000 # File should only be run on a UP machine
 			IMAGE_REVERSED_HI = 0x8000 # public bytes of machine public ushort are reversed.
 		} -Bitfield
-
-		$ImageHdrMagic = enumerate $Mod PE.IMAGE_NT_OPTIONAL_HDR_MAGIC UInt16 @{
+    
+    $ImageHdrMagic = enumerate $Mod PE.IMAGE_NT_OPTIONAL_HDR_MAGIC UInt16 @{
 			PE32 = 0x010B
 			PE64 = 0x020B
 		}
-
-		$ImageNTSig = enumerate $Mod PE.IMAGE_NT_SIGNATURE UInt32 @{
+    
+    $ImageNTSig = enumerate $Mod PE.IMAGE_NT_SIGNATURE UInt32 @{
 			VALID_PE_SIGNATURE = 0x00004550
 		}
-
-		$ImageSubsystem = enumerate $Mod PE.IMAGE_SUBSYSTEM UInt16 @{
+    
+    $ImageSubsystem = enumerate $Mod PE.IMAGE_SUBSYSTEM UInt16 @{
 			UNKNOWN = 0
 			NATIVE = 1 # Image doesn't require a subsystem.
 			WINDOWS_GUI = 2 # Image runs in the Windows GUI subsystem.
@@ -106,8 +123,8 @@
 			XBOX = 14
 			WINDOWS_BOOT_APPLICATION = 16
 		}
-
-		$ImageDllCharacteristics = enumerate $Mod PE.IMAGE_DLLCHARACTERISTICS UInt16 @{
+    
+    $ImageDllCharacteristics = enumerate $Mod PE.IMAGE_DLLCHARACTERISTICS UInt16 @{
 			HIGH_ENTROPY_VA = 0x0020 # Opts in to high entropy ASLR
 			DYNAMIC_BASE = 0x0040 # DLL can move.
 			FORCE_INTEGRITY = 0x0080 # Code Integrity Image
@@ -118,8 +135,8 @@
 			WDM_DRIVER = 0x2000 # Driver uses WDM model
 			TERMINAL_SERVER_AWARE = 0x8000
 		} -Bitfield
-
-		$ImageScn = enumerate $Mod PE.IMAGE_SCN Int32 @{
+    
+    $ImageScn = enumerate $Mod PE.IMAGE_SCN Int32 @{
 			TYPE_NO_PAD = 0x00000008 # Reserved.
 			CNT_CODE = 0x00000020 # Section contains code.
 			CNT_INITIALIZED_DATA = 0x00000040 # Section contains initialized data.
@@ -158,8 +175,8 @@
 			MEM_READ = 0x40000000 # Section is readable.
 			MEM_WRITE = 0x80000000 # Section is writeable.
 		} -Bitfield
-
-		$ImageDosHeader = struct $Mod PE.IMAGE_DOS_HEADER @{
+    
+    $ImageDosHeader = struct $Mod PE.IMAGE_DOS_HEADER @{
 			e_magic = field 0 $ImageDosSignature
 			e_cblp = field 1 UInt16
 			e_cp = field 2 UInt16
@@ -180,8 +197,8 @@
 			e_res2 = field 17 UInt16[] -MarshalAs @('ByValArray', 10)
 			e_lfanew = field 18 Int32
 		}
-
-		$ImageFileHeader = struct $Mod PE.IMAGE_FILE_HEADER @{
+    
+    $ImageFileHeader = struct $Mod PE.IMAGE_FILE_HEADER @{
 			Machine = field 0 $ImageFileMachine
 			NumberOfSections = field 1 UInt16
 			TimeDateStamp = field 2 UInt32
@@ -190,14 +207,14 @@
 			SizeOfOptionalHeader = field 5 UInt16
 			Characteristics = field 6 $ImageFileCharacteristics
 		}
-
-
-		$PeImageDataDir = struct $Mod PE.IMAGE_DATA_DIRECTORY @{
+    
+    
+    $PeImageDataDir = struct $Mod PE.IMAGE_DATA_DIRECTORY @{
 			VirtualAddress = field 0 UInt32
 			Size = field 1 UInt32
 		}
-
-		$ImageOptionalHdr = struct $Mod PE.IMAGE_OPTIONAL_HEADER @{
+    
+    $ImageOptionalHdr = struct $Mod PE.IMAGE_OPTIONAL_HEADER @{
 			Magic = field 0 $ImageHdrMagic
 			MajorLinkerVersion = field 1 Byte
 			MinorLinkerVersion = field 2 Byte
@@ -230,8 +247,8 @@
 			NumberOfRvaAndSizes = field 29 UInt32
 			DataDirectory = field 30 $PeImageDataDir.MakeArrayType() -MarshalAs @('ByValArray', 16)
 		}
-
-		$ImageOptionalHdr64 = struct $Mod PE.IMAGE_OPTIONAL_HEADER64 @{
+    
+    $ImageOptionalHdr64 = struct $Mod PE.IMAGE_OPTIONAL_HEADER64 @{
 			Magic = field 0 $ImageHdrMagic
 			MajorLinkerVersion = field 1 Byte
 			MinorLinkerVersion = field 2 Byte
@@ -263,289 +280,690 @@
 			NumberOfRvaAndSizes = field 28 UInt32
 			DataDirectory = field 29 $PeImageDataDir.MakeArrayType() -MarshalAs @('ByValArray', 16)
 		}
-
-		$ImageNTHdrs = struct $mod PE.IMAGE_NT_HEADERS @{
+    
+    $ImageSectionHdrs = struct $Mod PE.IMAGE_SECTION_HEADER @{
+      Name = field 0 String -MarshalAs @('ByValTStr', 8)
+      VirtualSize = field 1 UInt32
+      VirtualAddress = field 2 UInt32
+      SizeOfRawData = field 3 UInt32
+      PointerToRawData = field 4 UInt32
+      PointerToRelocations = field 5 UInt32
+      PointerToLinenumbers = field 6 UInt32
+      NumberOfRelocations = field 7 UInt16
+      NumberOfLinenumbers = field 8 UInt16   
+      Characteristics = field 9 $ImageScn
+    }
+    
+    $ImageConfigDirectory = struct $Mod PE.IMAGE_LOAD_CONFIG_DIRECTORY @{
+      Size = field 0 UInt32
+      TimeDateStamp = field 1 UInt32
+      MajorVersion = field 2 UInt16
+      MinorVersion = field 3 UInt16
+      GlobalFlagsClear = field 4 UInt32
+      GlobalFlagsSet = field 5 UInt32
+      CriticalSectionDefaultTimeout = field 6 UInt32
+      DeCommitFreeBlockThreshold = field 7 UInt32
+      DeCommitTotalFreeThreshold = field 8 UInt32
+      LockPrefixTable = field 9 UInt32
+      MaximumAllocationSize = field 10 UInt32
+      VirtualMemoryThreshold = field 11 UInt32
+      ProcessHeapFlags = field 12 UInt32
+      ProcessAffinityMask = field 13 UInt32
+      CSDVersion = field 14 UInt16
+      Reserved1 = field 15 UInt16
+      EditList = field 16 UInt32
+      SecurityCookie = field 17 UInt32
+      SEHandlerTable = field 18 UInt32
+      SEHandlerCount = field 19 UInt32
+    }
+    
+    $ImageNTHdrs = struct $Mod PE.IMAGE_NT_HEADERS @{
 			Signature = field 0 $ImageNTSig
 			FileHeader = field 1 $ImageFileHeader
 			OptionalHeader = field 2 $ImageOptionalHdr
 		}
-
-		$ImageNTHdrs64 = struct $mod PE.IMAGE_NT_HEADERS64 @{
+    
+    $ImageNTHdrs64 = struct $Mod PE.IMAGE_NT_HEADERS64 @{
 			Signature = field 0 $ImageNTSig
 			FileHeader = field 1 $ImageFileHeader
 			OptionalHeader = field 2 $ImageOptionalHdr64
 		}
-
-		$FunctionDefinitions = @(
+    
+    $FunctionDefinitions = @(
 			(				func kernel32 GetProcAddress ([IntPtr]) @([IntPtr], [String])),
 			(				func kernel32 GetModuleHandle ([Intptr]) @([String])),
 			(				func ntdll RtlGetCurrentPeb ([IntPtr]) @())
 		)
-	}
-	Process
-	{
-		$Types = $FunctionDefinitions | Add-Win32Type -Module $Mod -Namespace 'Win32'
-		$Kernel32 = $Types['kernel32']
-		$Ntdll = $Types['ntdll']
-
-		$ntdllbase = $Kernel32::GetModuleHandle('ntdll')
-		$DosHeader = $ntdllbase -as $ImageDosHeader
-		$NtHeaderOffset = [IntPtr] ($ntdllbase.ToInt64() + $DosHeader.e_lfanew)
-		$NTHeader = $NtHeaderOffset -as $ImageNTHdrs
-		if ($NtHeader.OptionalHeader.Magic -eq 'PE64')
-		{
-			$NTHeader = $NtHeaderOffset -as $ImageNTHdrs64
-		}
     
-		$NtHeader.FileHeader
-		$NtHeader.OptionalHeader
-		$NtHeader.OptionalHeader.DataDirectory
-	}
-	End
-	{
-	}
+    $Table = New-Object system.Data.DataTable "table"
+    $Col1 = New-Object system.Data.DataColumn FileName,([string])
+    $Col2 = New-Object system.Data.DataColumn ARCH,([string])
+    $Col3 = New-Object system.Data.DataColumn ASLR,([string])
+    $Col4 = New-Object system.Data.DataColumn DEP,([string])
+    $Col5 = New-Object system.Data.DataColumn Authenticode,([string])
+    $Col6 = New-Object system.Data.DataColumn StrongNaming,([string])
+    $Col7 = New-Object system.Data.DataColumn SafeSEH,([string])
+    $Table.columns.add($Col1)
+    $Table.columns.add($Col2)
+    $Table.columns.add($Col3)
+    $Table.columns.add($Col4)
+    $Table.columns.add($Col5)
+    $Table.columns.add($Col6)
+    $Table.columns.add($Col7)
+  }
+  Process
+  { 
+    
+    
+    
+    $Files = Get-Files
+    Enumerate-Files $Files $Table
+    
+    $Table
+    
+  }
+  End
+  {
+  }
+}
+
+function Enumerate-Files 
+{
+  param
+  (
+    [System.Object]
+    $Files,
+    
+    [System.Object]
+    $Table
+  )
+  
+  foreach ($CurrentFile in $Files)
+  {
+    $ASLR = $false
+    $DEP = $false
+    $SEH = $false
+    $Authenticode = $false
+    $StrongNaming = $false
+    
+    $FileByteArray = [IO.File]::ReadAllBytes($CurrentFile)
+    $Handle = [System.Runtime.InteropServices.GCHandle]::Alloc($FileByteArray, 'Pinned')
+    $PEBaseAddr = $Handle.AddrOfPinnedObject()
+    $DosHeader = $PEBaseAddr -as $ImageDosHeader
+    $PointerNtHeader = [IntPtr] ($PEBaseAddr.ToInt64() + $DosHeader.e_lfanew)
+    $NTHeader = $PointerNtHeader -as $ImageNTHdrs
+    if ($NtHeader.OptionalHeader.Magic -eq 'PE64')
+    {
+      $NTHeader = $PointerNtHeader -as $ImageNTHdrs64
+    }
+    $ARCH = $NtHeader.FileHeader.Machine.toString()
+    $DllCharacteristics = $NtHeader.OptionalHeader.DllCharacteristics.toString().Split(',').Trim()
+    foreach($DllCharacteristic in $DllCharacteristics){
+      switch($DllCharacteristic){
+        'DYNAMIC_BASE' {$ASLR = $true}
+        'NX_COMPAT' {$DEP = $true}
+        'NO_SEH' {$SEH = 'N/A'}
+      }
+    }
+    #Get Strongnaming Status
+    $StrongNaming = Get-StrongNamingStatus $CurrentFile
+    
+    #Get Authenticode Status
+    $Authenticode = Get-AuthenticodeStatus $CurrentFile
+    
+    if ($ARCH -eq 'AMD64')
+    {
+      $SEH = 'N/A'
+    } elseif ($SEH -ne 'N/A')
+    {
+      #Get SEH Status
+      $SEH = Get-SEHStatus $CurrentFile $NTHeader $PointerNtHeader $PEBaseAddr
+    }
+    
+    #Write everything to a DataTable
+    $Row = $Table.NewRow()
+    $Row.FileName = $CurrentFile
+    $Row.ARCH = $ARCH
+    $Row.ASLR = $ASLR
+    $Row.DEP = $DEP
+    $Row.Authenticode = $Authenticode
+    $Row.StrongNaming = $StrongNaming
+    $Row.SafeSEH = $SEH
+    $Table.Rows.Add($Row)
+  }
+  
+}
+
+function Get-AuthenticodeStatus
+{
+  param
+  (
+    [System.Object]
+    $CurrentFile
+    
+  )
+  
+  $Status = Get-AuthenticodeSignature $CurrentFile | Select-object -ExpandProperty Status
+  
+  if ($Status -eq 'Valid')
+  {
+    $Authenticode = $true
+  } 
+  else
+  {
+    $Authenticode = $false
+  }
+  $Authenticode  
+}
+
+function Get-SEHStatus 
+{
+  
+  param
+  (
+    [System.Object]
+    $CurrentFile,
+    
+    [System.Object]
+    $NTHeader,
+    
+    [System.Object]
+    $PointerNtHeader,
+    
+    [System.Object]
+    $PEBaseAddr
+  )
+  $NumSections = $NTHeader.FileHeader.NumberOfSections
+  $PointerSectionHeader = [IntPtr] ($PointerNtHeader.ToInt64() + [System.Runtime.InteropServices.Marshal]::SizeOf([System.Type] $ImageNTHdrs))
+  #Create an array of SectionHeaders
+  $SectionHeaders = @(New-Object $ImageSectionHdrs) * $NumSections
+  
+  foreach ($i in 0..($NumSections - 1))
+  {
+    
+    $SectionHeaders[$i] = [System.Runtime.InteropServices.Marshal]::PtrToStructure(([IntPtr] ($PointerSectionHeader.ToInt64() + ($i * [System.Runtime.InteropServices.Marshal]::SizeOf([System.Type] $ImageSectionHdrs)))), [System.Type] $ImageSectionHdrs)
+    
+  }
+  $ConfigPointer = [IntPtr] ($PEBaseAddr.ToInt64() + $NTHeader.OptionalHeader.DataDirectory[10].VirtualAddress)
+  $ConfigPointer = Convert-RVAToFileOffset $ConfigPointer $SectionHeaders $PEBaseAddr
+  $ConfigDirectory = [System.Runtime.InteropServices.Marshal]::PtrToStructure([IntPtr] $ConfigPointer, [System.Type] $ImageConfigDirectory)
+  $SEHandlerTable = $ConfigDirectory.SEHandlerTable
+  $SEHandlerCount = $ConfigDirectory.SEHandlerCount
+  if($NtHeader.OptionalHeader.DataDirectory[10].VirtualAddress -eq 0){
+    $SEH = $false
+  }
+  elseif($ConfigDirectory.Size -lt 72){
+    $SEH = $false
+  }
+  elseif($SEHandlerTable -ne 0 -and $SEHandlerCount -ne 0){
+    $SEH = $true
+  }
+  elseif($SEHandlerTable -eq 0 -or $SEHandlerCount -eq 0){
+    $SEH = $false
+  }
+  $SEH
+}
+
+function Get-StrongNamingStatus 
+{
+  param
+  (
+    [System.Object]
+    $CurrentFile
+  )
+  
+  try
+  {
+    $StongNaming = [System.Reflection.AssemblyName]::GetAssemblyName($CurrentFile).GetPublicKeyToken().Count -gt 0
+  }
+  catch
+  {
+    $StongNaming = 'N/A'
+  }
+  $StongNaming
 }
 
 function Get-Files 
 {
-   param
-   (
-     [System.Object]
-     $param1,
-
-     [System.Object]
-     $param2
-   )    
+  $Files = @()
+  if($Directory){
+    $files += Get-FilesFromDirectory
+  }
+  if($File){
+    $Files += Get-ChildItem $File
+  }
+  $Files
 }
+
+function Get-FilesFromDirectory 
+{
+  if($Recursive){
+    Get-ChildItem -path "$Directory\*" -recurse -Include *.exe, *.dll | Foreach-Object {
+      $Files += $_
+    }
+  }
+  else {
+    Get-ChildItem -path "$Directory\*" -Include *.exe, *.dll |Foreach-Object {
+      $Files += $_
+    }
+  }
+  $Files
+}
+
+function Convert-RVAToFileOffset
+{
+#Author: Matthew Graeber (@mattifestation)
+  param
+  (
+    [IntPtr]
+    $Rva
+  )
+  
+  foreach ($Section in $SectionHeaders) {
+    
+    if ((($Rva.ToInt64() - $PEBaseAddr.ToInt64()) -ge $Section.VirtualAddress) -and (($Rva.ToInt64() - $PEBaseAddr.ToInt64()) -lt ($Section.VirtualAddress + $Section.VirtualSize))) {
+      return [IntPtr] ($Rva.ToInt64() - ($Section.VirtualAddress - $Section.PointerToRawData))
+      Write-Host $Section
+    }
+  }
+  
+  $Rva
+}
+
+<# 
+The following functions are from Matt Graeber's method of PSReflection
+https://github.com/mattifestation/PSReflect
+#>
 
 function func
 {
- Param
-(
-	[Parameter(Position = 0, Mandatory = $True)]
-	[String]
-	$DllName,
-
-	[Parameter(Position = 1, Mandatory = $True)]
-	[string]
-	$FunctionName,
-
-	[Parameter(Position = 2, Mandatory = $True)]
-	[Type]
-	$ReturnType,
-
-	[Parameter(Position = 3)]
-	[Type[]]
-	$ParameterTypes,
-
-	[Parameter(Position = 4)]
-	[Runtime.InteropServices.CallingConvention]
-	$NativeCallingConvention,
-
-	[Parameter(Position = 5)]
-	[Runtime.InteropServices.CharSet]
-	$Charset,
-
-	[Switch]
-	$SetLastError
-)
-
-$Properties = @{
+#Author: Matthew Graeber (@mattifestation)
+  Param
+  (
+    [Parameter(Position = 0, Mandatory = $True)]
+    [String]
+    $DllName,
+    
+    [Parameter(Position = 1, Mandatory = $True)]
+    [string]
+    $FunctionName,
+    
+    [Parameter(Position = 2, Mandatory = $True)]
+    [Type]
+    $ReturnType,
+    
+    [Parameter(Position = 3)]
+    [Type[]]
+    $ParameterTypes,
+    
+    [Parameter(Position = 4)]
+    [Runtime.InteropServices.CallingConvention]
+    $NativeCallingConvention,
+    
+    [Parameter(Position = 5)]
+    [Runtime.InteropServices.CharSet]
+    $Charset,
+    
+    [Switch]
+    $SetLastError
+  )
+  
+  $Properties = @{
 	DllName = $DllName
 	FunctionName = $FunctionName
 	ReturnType = $ReturnType
 }
-
-if ($ParameterTypes) { $Properties['ParameterTypes'] = $ParameterTypes }
-if ($NativeCallingConvention) { $Properties['NativeCallingConvention'] = $NativeCallingConvention }
-if ($Charset) { $Properties['Charset'] = $Charset }
-if ($SetLastError) { $Properties['SetLastError'] = $SetLastError }
-
-New-Object PSObject -Property $Properties
+  
+  if ($ParameterTypes) { $Properties['ParameterTypes'] = $ParameterTypes }
+  if ($NativeCallingConvention) { $Properties['NativeCallingConvention'] = $NativeCallingConvention }
+  if ($Charset) { $Properties['Charset'] = $Charset }
+  if ($SetLastError) { $Properties['SetLastError'] = $SetLastError }
+  
+  New-Object PSObject -Property $Properties
 }
 
 function enumerate
 {
- [OutputType([Type])]
-Param
-(
-	[Parameter(Position = 0, Mandatory = $True)]
-	[Reflection.Emit.ModuleBuilder]
-	$Module,
+<#
+Author: Matthew Graeber (@mattifestation)
+.SYNOPSIS
 
-	[Parameter(Position = 1, Mandatory = $True)]
-	[ValidateNotNullOrEmpty()]
-	[String]
-	$FullName,
+Creates an in-memory enumeration for use in your PowerShell session.
 
-	[Parameter(Position = 2, Mandatory = $True)]
-	[Type]
-	$Type,
+Author: Matthew Graeber (@mattifestation)
+License: BSD 3-Clause
+Required Dependencies: None
+Optional Dependencies: None
+ 
+.DESCRIPTION
 
-	[Parameter(Position = 3, Mandatory = $True)]
-	[ValidateNotNullOrEmpty()]
-	[Hashtable]
-	$EnumElements,
+The 'enum' function facilitates the creation of enums entirely in
+memory using as close to a "C style" as PowerShell will allow.
 
-	[Switch]
-	$Bitfield
-)
+.PARAMETER Module
 
-$EnumType = $Type -as [Type]
+The in-memory module that will host the enum. Use
+New-InMemoryModule to define an in-memory module.
 
-$EnumBuilder = $Module.DefineEnum($FullName, 'Public', $EnumType)
+.PARAMETER FullName
 
-if ($Bitfield)
-{
-	$FlagsConstructor = [FlagsAttribute].GetConstructor(@())
-	$FlagsCustomAttribute = New-Object Reflection.Emit.CustomAttributeBuilder($FlagsConstructor, @())
-	$EnumBuilder.SetCustomAttribute($FlagsCustomAttribute)
+The fully-qualified name of the enum.
+
+.PARAMETER Type
+
+The type of each enum element.
+
+.PARAMETER EnumElements
+
+A hashtable of enum elements.
+
+.PARAMETER Bitfield
+
+Specifies that the enum should be treated as a bitfield.
+
+.EXAMPLE
+
+$Mod = New-InMemoryModule -ModuleName Win32
+
+$ImageSubsystem = enum $Mod PE.IMAGE_SUBSYSTEM UInt16 @{
+    UNKNOWN =                  0
+    NATIVE =                   1 # Image doesn't require a subsystem.
+    WINDOWS_GUI =              2 # Image runs in the Windows GUI subsystem.
+    WINDOWS_CUI =              3 # Image runs in the Windows character subsystem.
+    OS2_CUI =                  5 # Image runs in the OS/2 character subsystem.
+    POSIX_CUI =                7 # Image runs in the Posix character subsystem.
+    NATIVE_WINDOWS =           8 # Image is a native Win9x driver.
+    WINDOWS_CE_GUI =           9 # Image runs in the Windows CE subsystem.
+    EFI_APPLICATION =          10
+    EFI_BOOT_SERVICE_DRIVER =  11
+    EFI_RUNTIME_DRIVER =       12
+    EFI_ROM =                  13
+    XBOX =                     14
+    WINDOWS_BOOT_APPLICATION = 16
 }
 
-foreach ($Key in $EnumElements.Keys)
-{
-	# Apply the specified enum type to each element
-	$null = $EnumBuilder.DefineLiteral($Key, $EnumElements[$Key] -as $EnumType)
-}
+.NOTES
 
-$EnumBuilder.CreateType()
+PowerShell purists may disagree with the naming of this function but
+again, this was developed in such a way so as to emulate a "C style"
+definition as closely as possible. Sorry, I'm not going to name it
+New-Enum. :P
+#>
+
+  [OutputType([Type])]
+  Param
+  (
+    [Parameter(Position = 0, Mandatory = $True)]
+    [Reflection.Emit.ModuleBuilder]
+    $Module,
+    
+    [Parameter(Position = 1, Mandatory = $True)]
+    [ValidateNotNullOrEmpty()]
+    [String]
+    $FullName,
+    
+    [Parameter(Position = 2, Mandatory = $True)]
+    [Type]
+    $Type,
+    
+    [Parameter(Position = 3, Mandatory = $True)]
+    [ValidateNotNullOrEmpty()]
+    [Hashtable]
+    $EnumElements,
+    
+    [Switch]
+    $Bitfield
+  )
+  
+  $EnumType = $Type -as [Type]
+  
+  $EnumBuilder = $Module.DefineEnum($FullName, 'Public', $EnumType)
+  
+  if ($Bitfield)
+  {
+    $FlagsConstructor = [FlagsAttribute].GetConstructor(@())
+    $FlagsCustomAttribute = New-Object Reflection.Emit.CustomAttributeBuilder($FlagsConstructor, @())
+    $EnumBuilder.SetCustomAttribute($FlagsCustomAttribute)
+  }
+  
+  foreach ($Key in $EnumElements.Keys)
+  {
+    # Apply the specified enum type to each element
+    $null = $EnumBuilder.DefineLiteral($Key, $EnumElements[$Key] -as $EnumType)
+  }
+  
+  $EnumBuilder.CreateType()
 }
 
 function struct
 {
- [OutputType([Type])]
-Param
-(
-	[Parameter(Position = 1, Mandatory = $True)]
-	[Reflection.Emit.ModuleBuilder]
-	$Module,
+<#
+Author: Matthew Graeber (@mattifestation)
+.SYNOPSIS
 
-	[Parameter(Position = 2, Mandatory = $True)]
-	[ValidateNotNullOrEmpty()]
-	[String]
-	$FullName,
+Creates an in-memory struct for use in your PowerShell session.
 
-	[Parameter(Position = 3, Mandatory = $True)]
-	[ValidateNotNullOrEmpty()]
-	[Hashtable]
-	$StructFields,
+Author: Matthew Graeber (@mattifestation)
+License: BSD 3-Clause
+Required Dependencies: None
+Optional Dependencies: field
+ 
+.DESCRIPTION
 
-	[Reflection.Emit.PackingSize]
-	$PackingSize = [Reflection.Emit.PackingSize]::Unspecified,
+The 'struct' function facilitates the creation of structs entirely in
+memory using as close to a "C style" as PowerShell will allow. Struct
+fields are specified using a hashtable where each field of the struct
+is comprosed of the order in which it should be defined, its .NET
+type, and optionally, its offset and special marshaling attributes.
 
-	[Switch]
-	$ExplicitLayout
-)
+One of the features of 'struct' is that after your struct is defined,
+it will come with a built-in GetSize method as well as an explicit
+converter so that you can easily cast an IntPtr to the struct without
+relying upon calling SizeOf and/or PtrToStructure in the Marshal
+class.
 
-[Reflection.TypeAttributes] $StructAttributes = 'AnsiClass,
-Class,
-Public,
-Sealed,
-BeforeFieldInit'
+.PARAMETER Module
 
-if ($ExplicitLayout)
-{
-	$StructAttributes = $StructAttributes -bor [Reflection.TypeAttributes]::ExplicitLayout
-}
-else
-{
-	$StructAttributes = $StructAttributes -bor [Reflection.TypeAttributes]::SequentialLayout
-}
+The in-memory module that will host the struct. Use
+New-InMemoryModule to define an in-memory module.
 
-$StructBuilder = $Module.DefineType($FullName, $StructAttributes, [ValueType], $PackingSize)
-$ConstructorInfo = [Runtime.InteropServices.MarshalAsAttribute].GetConstructors()[0]
-$SizeConst = @([Runtime.InteropServices.MarshalAsAttribute].GetField('SizeConst'))
+.PARAMETER FullName
 
-$Fields = New-Object Hashtable[]($StructFields.Count)
+The fully-qualified name of the struct.
 
-# Sort each field according to the orders specified
-# Unfortunately, PSv2 doesn't have the luxury of the
-# hashtable [Ordered] accelerator.
-foreach ($Field in $StructFields.Keys)
-{
-	$Index = $StructFields[$Field]['Position']
-	$Fields[$Index] = @{FieldName = $Field; Properties = $StructFields[$Field]}
-}
+.PARAMETER StructFields
 
-foreach ($Field in $Fields)
-{
-	$FieldName = $Field['FieldName']
-	$FieldProp = $Field['Properties']
+A hashtable of fields. Use the 'field' helper function to ease
+defining each field.
 
-	$Offset = $FieldProp['Offset']
-	$Type = $FieldProp['Type']
-	$MarshalAs = $FieldProp['MarshalAs']
+.PARAMETER PackingSize
 
-	$NewField = $StructBuilder.DefineField($FieldName, $Type, 'Public')
+Specifies the memory alignment of fields.
 
-	if ($MarshalAs)
-	{
-		$UnmanagedType = $MarshalAs[0] -as ([Runtime.InteropServices.UnmanagedType])
-		$Size = $MarshalAs[1]
-		$AttribBuilder = New-Object Reflection.Emit.CustomAttributeBuilder($ConstructorInfo,
-			$UnmanagedType, $SizeConst, @($Size))
-		$NewField.SetCustomAttribute($AttribBuilder)
-	}
+.PARAMETER ExplicitLayout
 
-	if ($ExplicitLayout) { $NewField.SetOffset($Offset) }
+Indicates that an explicit offset for each field will be specified.
+
+.EXAMPLE
+
+$Mod = New-InMemoryModule -ModuleName Win32
+
+$ImageDosSignature = enum $Mod PE.IMAGE_DOS_SIGNATURE UInt16 @{
+    DOS_SIGNATURE =    0x5A4D
+    OS2_SIGNATURE =    0x454E
+    OS2_SIGNATURE_LE = 0x454C
+    VXD_SIGNATURE =    0x454C
 }
 
-# Make the struct aware of its own size.
-# No more having to call [Runtime.InteropServices.Marshal]::SizeOf!
-$SizeMethod = $StructBuilder.DefineMethod('GetSize',
-	'Public, Static',
-	[Int],
-	[Type[]] @())
-$ILGenerator = $SizeMethod.GetILGenerator()
-# Thanks for the help, Jason Shirk!
-$ILGenerator.Emit([Reflection.Emit.OpCodes]::Ldtoken, $StructBuilder)
-$ILGenerator.Emit([Reflection.Emit.OpCodes]::Call,
-	[Type].GetMethod('GetTypeFromHandle'))
-$ILGenerator.Emit([Reflection.Emit.OpCodes]::Call,
-	[Runtime.InteropServices.Marshal].GetMethod('SizeOf', [Type[]] @([Type])))
-$ILGenerator.Emit([Reflection.Emit.OpCodes]::Ret)
+$ImageDosHeader = struct $Mod PE.IMAGE_DOS_HEADER @{
+    e_magic =    field 0 $ImageDosSignature
+    e_cblp =     field 1 UInt16
+    e_cp =       field 2 UInt16
+    e_crlc =     field 3 UInt16
+    e_cparhdr =  field 4 UInt16
+    e_minalloc = field 5 UInt16
+    e_maxalloc = field 6 UInt16
+    e_ss =       field 7 UInt16
+    e_sp =       field 8 UInt16
+    e_csum =     field 9 UInt16
+    e_ip =       field 10 UInt16
+    e_cs =       field 11 UInt16
+    e_lfarlc =   field 12 UInt16
+    e_ovno =     field 13 UInt16
+    e_res =      field 14 UInt16[] -MarshalAs @('ByValArray', 4)
+    e_oemid =    field 15 UInt16
+    e_oeminfo =  field 16 UInt16
+    e_res2 =     field 17 UInt16[] -MarshalAs @('ByValArray', 10)
+    e_lfanew =   field 18 Int32
+}
 
-# Allow for explicit casting from an IntPtr
-# No more having to call [Runtime.InteropServices.Marshal]::PtrToStructure!
-$ImplicitConverter = $StructBuilder.DefineMethod('op_Implicit',
-	'PrivateScope, Public, Static, HideBySig, SpecialName',
-	$StructBuilder,
-	[Type[]] @([IntPtr]))
-$ILGenerator2 = $ImplicitConverter.GetILGenerator()
-$ILGenerator2.Emit([Reflection.Emit.OpCodes]::Nop)
-$ILGenerator2.Emit([Reflection.Emit.OpCodes]::Ldarg_0)
-$ILGenerator2.Emit([Reflection.Emit.OpCodes]::Ldtoken, $StructBuilder)
-$ILGenerator2.Emit([Reflection.Emit.OpCodes]::Call,
-	[Type].GetMethod('GetTypeFromHandle'))
-$ILGenerator2.Emit([Reflection.Emit.OpCodes]::Call,
-	[Runtime.InteropServices.Marshal].GetMethod('PtrToStructure', [Type[]] @([IntPtr], [Type])))
-$ILGenerator2.Emit([Reflection.Emit.OpCodes]::Unbox_Any, $StructBuilder)
-$ILGenerator2.Emit([Reflection.Emit.OpCodes]::Ret)
+# Example of using an explicit layout in order to create a union.
+$TestUnion = struct $Mod TestUnion @{
+    field1 = field 0 UInt32 0
+    field2 = field 1 IntPtr 0
+} -ExplicitLayout
 
-$StructBuilder.CreateType()
+.NOTES
+
+PowerShell purists may disagree with the naming of this function but
+again, this was developed in such a way so as to emulate a "C style"
+definition as closely as possible. Sorry, I'm not going to name it
+New-Struct. :P
+#>
+  [OutputType([Type])]
+  Param
+  (
+    [Parameter(Position = 1, Mandatory = $True)]
+    [Reflection.Emit.ModuleBuilder]
+    $Module,
+    
+    [Parameter(Position = 2, Mandatory = $True)]
+    [ValidateNotNullOrEmpty()]
+    [String]
+    $FullName,
+    
+    [Parameter(Position = 3, Mandatory = $True)]
+    [ValidateNotNullOrEmpty()]
+    [Hashtable]
+    $StructFields,
+    
+    [Reflection.Emit.PackingSize]
+    $PackingSize = [Reflection.Emit.PackingSize]::Unspecified,
+    
+    [Switch]
+    $ExplicitLayout
+  )
+  
+  [Reflection.TypeAttributes] $StructAttributes = 'AnsiClass,
+    Class,
+    Public,
+    Sealed,
+  BeforeFieldInit'
+  
+  if ($ExplicitLayout)
+  {
+    $StructAttributes = $StructAttributes -bor [Reflection.TypeAttributes]::ExplicitLayout
+  }
+  else
+  {
+    $StructAttributes = $StructAttributes -bor [Reflection.TypeAttributes]::SequentialLayout
+  }
+  
+  $StructBuilder = $Module.DefineType($FullName, $StructAttributes, [ValueType], $PackingSize)
+  $ConstructorInfo = [Runtime.InteropServices.MarshalAsAttribute].GetConstructors()[0]
+  $SizeConst = @([Runtime.InteropServices.MarshalAsAttribute].GetField('SizeConst'))
+  
+  $Fields = New-Object Hashtable[]($StructFields.Count)
+  
+  # Sort each field according to the orders specified
+  # Unfortunately, PSv2 doesn't have the luxury of the
+  # hashtable [Ordered] accelerator.
+  foreach ($Field in $StructFields.Keys)
+  {
+    $Index = $StructFields[$Field]['Position']
+    $Fields[$Index] = @{FieldName = $Field; Properties = $StructFields[$Field]}
+  }
+  
+  foreach ($Field in $Fields)
+  {
+    $FieldName = $Field['FieldName']
+    $FieldProp = $Field['Properties']
+    
+    $Offset = $FieldProp['Offset']
+    $Type = $FieldProp['Type']
+    $MarshalAs = $FieldProp['MarshalAs']
+    
+    $NewField = $StructBuilder.DefineField($FieldName, $Type, 'Public')
+    
+    if ($MarshalAs)
+    {
+      $UnmanagedType = $MarshalAs[0] -as ([Runtime.InteropServices.UnmanagedType])
+      $Size = $MarshalAs[1]
+      $AttribBuilder = New-Object Reflection.Emit.CustomAttributeBuilder($ConstructorInfo,
+      $UnmanagedType, $SizeConst, @($Size))
+      $NewField.SetCustomAttribute($AttribBuilder)
+    }
+    
+    if ($ExplicitLayout) { $NewField.SetOffset($Offset) }
+  }
+  
+  # Make the struct aware of its own size.
+  # No more having to call [Runtime.InteropServices.Marshal]::SizeOf!
+  $SizeMethod = $StructBuilder.DefineMethod('GetSize',
+    'Public, Static',
+    [Int],
+  [Type[]] @())
+  $ILGenerator = $SizeMethod.GetILGenerator()
+  # Thanks for the help, Jason Shirk!
+  $ILGenerator.Emit([Reflection.Emit.OpCodes]::Ldtoken, $StructBuilder)
+  $ILGenerator.Emit([Reflection.Emit.OpCodes]::Call,
+  [Type].GetMethod('GetTypeFromHandle'))
+  $ILGenerator.Emit([Reflection.Emit.OpCodes]::Call,
+  [Runtime.InteropServices.Marshal].GetMethod('SizeOf', [Type[]] @([Type])))
+  $ILGenerator.Emit([Reflection.Emit.OpCodes]::Ret)
+  
+  # Allow for explicit casting from an IntPtr
+  # No more having to call [Runtime.InteropServices.Marshal]::PtrToStructure!
+  $ImplicitConverter = $StructBuilder.DefineMethod('op_Implicit',
+    'PrivateScope, Public, Static, HideBySig, SpecialName',
+    $StructBuilder,
+  [Type[]] @([IntPtr]))
+  $ILGenerator2 = $ImplicitConverter.GetILGenerator()
+  $ILGenerator2.Emit([Reflection.Emit.OpCodes]::Nop)
+  $ILGenerator2.Emit([Reflection.Emit.OpCodes]::Ldarg_0)
+  $ILGenerator2.Emit([Reflection.Emit.OpCodes]::Ldtoken, $StructBuilder)
+  $ILGenerator2.Emit([Reflection.Emit.OpCodes]::Call,
+  [Type].GetMethod('GetTypeFromHandle'))
+  $ILGenerator2.Emit([Reflection.Emit.OpCodes]::Call,
+  [Runtime.InteropServices.Marshal].GetMethod('PtrToStructure', [Type[]] @([IntPtr], [Type])))
+  $ILGenerator2.Emit([Reflection.Emit.OpCodes]::Unbox_Any, $StructBuilder)
+  $ILGenerator2.Emit([Reflection.Emit.OpCodes]::Ret)
+  
+  $StructBuilder.CreateType()
 }
 
 function field
 {
- Param
-(
-	[Parameter(Position = 0, Mandatory = $True)]
-	[UInt16]
-	$Position,
-
-	[Parameter(Position = 1, Mandatory = $True)]
-	[Type]
-	$Type,
-
-	[Parameter(Position = 2)]
-	[UInt16]
-	$Offset,
-
-	[Object[]]
-	$MarshalAs
-)
-
-@{
+#Author: Matthew Graeber (@mattifestation)
+  Param
+  (
+    [Parameter(Position = 0, Mandatory = $True)]
+    [UInt16]
+    $Position,
+    
+    [Parameter(Position = 1, Mandatory = $True)]
+    [Type]
+    $Type,
+    
+    [Parameter(Position = 2)]
+    [UInt16]
+    $Offset,
+    
+    [Object[]]
+    $MarshalAs
+  )
+  
+  @{
 	Position = $Position
 	Type = $Type -as [Type]
 	Offset = $Offset
@@ -555,115 +973,199 @@ function field
 
 function Add-Win32Type
 {
- [OutputType([Hashtable])]
-Param(
-	[Parameter(Mandatory = $True, ValueFromPipelineByPropertyName = $True)]
-	[String]
-	$DllName,
+<#
+Author: Matthew Graeber (@mattifestation)
+.SYNOPSIS
 
-	[Parameter(Mandatory = $True, ValueFromPipelineByPropertyName = $True)]
-	[String]
-	$FunctionName,
+Creates a .NET type for an unmanaged Win32 function.
 
-	[Parameter(Mandatory = $True, ValueFromPipelineByPropertyName = $True)]
-	[Type]
-	$ReturnType,
+Author: Matthew Graeber (@mattifestation)
+License: BSD 3-Clause
+Required Dependencies: None
+Optional Dependencies: func
+ 
+.DESCRIPTION
 
-	[Parameter(ValueFromPipelineByPropertyName = $True)]
-	[Type[]]
-	$ParameterTypes,
+Add-Win32Type enables you to easily interact with unmanaged (i.e.
+Win32 unmanaged) functions in PowerShell. After providing
+Add-Win32Type with a function signature, a .NET type is created
+using reflection (i.e. csc.exe is never called like with Add-Type).
 
-	[Parameter(ValueFromPipelineByPropertyName = $True)]
-	[Runtime.InteropServices.CallingConvention]
-	$NativeCallingConvention = [Runtime.InteropServices.CallingConvention]::StdCall,
+The 'func' helper function can be used to reduce typing when defining
+multiple function definitions.
 
-	[Parameter(ValueFromPipelineByPropertyName = $True)]
-	[Runtime.InteropServices.CharSet]
-	$Charset = [Runtime.InteropServices.CharSet]::Auto,
+.PARAMETER DllName
 
-	[Parameter(ValueFromPipelineByPropertyName = $True)]
-	[Switch]
-	$SetLastError,
+The name of the DLL.
 
-	[Parameter(Mandatory = $True)]
-	[Reflection.Emit.ModuleBuilder]
-	$Module,
+.PARAMETER FunctionName
 
-	[ValidateNotNull()]
-	[String]
-	$Namespace = ''
+The name of the target function.
+
+.PARAMETER ReturnType
+
+The return type of the function.
+
+.PARAMETER ParameterTypes
+
+The function parameters.
+
+.PARAMETER NativeCallingConvention
+
+Specifies the native calling convention of the function. Defaults to
+stdcall.
+
+.PARAMETER Charset
+
+If you need to explicitly call an 'A' or 'W' Win32 function, you can
+specify the character set.
+
+.PARAMETER SetLastError
+
+Indicates whether the callee calls the SetLastError Win32 API
+function before returning from the attributed method.
+
+.PARAMETER Module
+
+The in-memory module that will host the functions. Use
+New-InMemoryModule to define an in-memory module.
+
+.PARAMETER Namespace
+
+An optional namespace to prepend to the type. Add-Win32Type defaults
+to a namespace consisting only of the name of the DLL.
+
+.EXAMPLE
+
+$Mod = New-InMemoryModule -ModuleName Win32
+
+$FunctionDefinitions = @(
+  (func kernel32 GetProcAddress ([IntPtr]) @([IntPtr], [String]) -Charset Ansi -SetLastError),
+  (func kernel32 GetModuleHandle ([Intptr]) @([String]) -SetLastError),
+  (func ntdll RtlGetCurrentPeb ([IntPtr]) @())
 )
 
-BEGIN
-{
-	$TypeHash = @{}
-}
+$Types = $FunctionDefinitions | Add-Win32Type -Module $Mod -Namespace 'Win32'
+$Kernel32 = $Types['kernel32']
+$Ntdll = $Types['ntdll']
+$Ntdll::RtlGetCurrentPeb()
+$ntdllbase = $Kernel32::GetModuleHandle('ntdll')
+$Kernel32::GetProcAddress($ntdllbase, 'RtlGetCurrentPeb')
 
-PROCESS
-{
-	# Define one type for each DLL
-	if (!$TypeHash.ContainsKey($DllName))
-	{
-		if ($Namespace)
-		{
-			$TypeHash[$DllName] = $Module.DefineType("$Namespace.$DllName", 'Public,BeforeFieldInit')
-		}
-		else
-		{
-			$TypeHash[$DllName] = $Module.DefineType($DllName, 'Public,BeforeFieldInit')
-		}
-	}
+.NOTES
 
-	$Method = $TypeHash[$DllName].DefineMethod(
-		$FunctionName,
-		'Public,Static,PinvokeImpl',
-		$ReturnType,
-		$ParameterTypes)
+Inspired by Lee Holmes' Invoke-WindowsApi http://poshcode.org/2189
 
-	# Make each ByRef parameter an Out parameter
-	$i = 1
-	foreach($Parameter in $ParameterTypes)
-	{
-		if ($Parameter.IsByRef)
-		{
-			[void] $Method.DefineParameter($i, 'Out', $null)
-		}
-
-		$i++
-	}
-
-	$DllImport = [Runtime.InteropServices.DllImportAttribute]
-	$SetLastErrorField = $DllImport.GetField('SetLastError')
-	$CallingConventionField = $DllImport.GetField('CallingConvention')
-	$CharsetField = $DllImport.GetField('CharSet')
-	if ($SetLastError) { $SLEValue = $True } else { $SLEValue = $False }
-
-	# Equivalent to C# version of [DllImport(DllName)]
-	$Constructor = [Runtime.InteropServices.DllImportAttribute].GetConstructor([String])
-	$DllImportAttribute = New-Object Reflection.Emit.CustomAttributeBuilder($Constructor,
-		$DllName, [Reflection.PropertyInfo[]] @(), [Object[]] @(),
-		[Reflection.FieldInfo[]] @($SetLastErrorField, $CallingConventionField, $CharsetField),
-		[Object[]] @($SLEValue, ([Runtime.InteropServices.CallingConvention] $NativeCallingConvention), ([Runtime.InteropServices.CharSet] $Charset)))
-
-	$Method.SetCustomAttribute($DllImportAttribute)
-}
-
-END
-{
-	$ReturnTypes = @{}
-
-	foreach ($Key in $TypeHash.Keys)
-	{
-		$Type = $TypeHash[$Key].CreateType()
-
-		$ReturnTypes[$Key] = $Type
-	}
-
-	return $ReturnTypes
-}
+When defining multiple function prototypes, it is ideal to provide
+Add-Win32Type with an array of function signatures. That way, they
+are all incorporated into the same in-memory module.
+#>
+  [OutputType([Hashtable])]
+  Param(
+    [Parameter(Mandatory = $True, ValueFromPipelineByPropertyName = $True)]
+    [String]
+    $DllName,
+    
+    [Parameter(Mandatory = $True, ValueFromPipelineByPropertyName = $True)]
+    [String]
+    $FunctionName,
+    
+    [Parameter(Mandatory = $True, ValueFromPipelineByPropertyName = $True)]
+    [Type]
+    $ReturnType,
+    
+    [Parameter(ValueFromPipelineByPropertyName = $True)]
+    [Type[]]
+    $ParameterTypes,
+    
+    [Parameter(ValueFromPipelineByPropertyName = $True)]
+    [Runtime.InteropServices.CallingConvention]
+    $NativeCallingConvention = [Runtime.InteropServices.CallingConvention]::StdCall,
+    
+    [Parameter(ValueFromPipelineByPropertyName = $True)]
+    [Runtime.InteropServices.CharSet]
+    $Charset = [Runtime.InteropServices.CharSet]::Auto,
+    
+    [Parameter(ValueFromPipelineByPropertyName = $True)]
+    [Switch]
+    $SetLastError,
+    
+    [Parameter(Mandatory = $True)]
+    [Reflection.Emit.ModuleBuilder]
+    $Module,
+    
+    [ValidateNotNull()]
+    [String]
+    $Namespace = ''
+  )
+  
+  BEGIN
+  {
+    $TypeHash = @{}
+  }
+  
+  PROCESS
+  {
+    # Define one type for each DLL
+    if (!$TypeHash.ContainsKey($DllName))
+    {
+      if ($Namespace)
+      {
+        $TypeHash[$DllName] = $Module.DefineType("$Namespace.$DllName", 'Public,BeforeFieldInit')
+      }
+      else
+      {
+        $TypeHash[$DllName] = $Module.DefineType($DllName, 'Public,BeforeFieldInit')
+      }
+    }
+    
+    $Method = $TypeHash[$DllName].DefineMethod(
+      $FunctionName,
+      'Public,Static,PinvokeImpl',
+      $ReturnType,
+    $ParameterTypes)
+    
+    # Make each ByRef parameter an Out parameter
+    $i = 1
+    foreach($Parameter in $ParameterTypes)
+    {
+      if ($Parameter.IsByRef)
+      {
+        [void] $Method.DefineParameter($i, 'Out', $null)
+      }
+      
+      $i++
+    }
+    
+    $DllImport = [Runtime.InteropServices.DllImportAttribute]
+    $SetLastErrorField = $DllImport.GetField('SetLastError')
+    $CallingConventionField = $DllImport.GetField('CallingConvention')
+    $CharsetField = $DllImport.GetField('CharSet')
+    if ($SetLastError) { $SLEValue = $True } else { $SLEValue = $False }
+    
+    # Equivalent to C# version of [DllImport(DllName)]
+    $Constructor = [Runtime.InteropServices.DllImportAttribute].GetConstructor([String])
+    $DllImportAttribute = New-Object Reflection.Emit.CustomAttributeBuilder($Constructor,
+      $DllName, [Reflection.PropertyInfo[]] @(), [Object[]] @(),
+      [Reflection.FieldInfo[]] @($SetLastErrorField, $CallingConventionField, $CharsetField),
+    [Object[]] @($SLEValue, ([Runtime.InteropServices.CallingConvention] $NativeCallingConvention), ([Runtime.InteropServices.CharSet] $Charset)))
+    
+    $Method.SetCustomAttribute($DllImportAttribute)
+  }
+  
+  END
+  {
+    $ReturnTypes = @{}
+    
+    foreach ($Key in $TypeHash.Keys)
+    {
+      $Type = $TypeHash[$Key].CreateType()
+      
+      $ReturnTypes[$Key] = $Type
+    }
+    
+    return $ReturnTypes
+  }
 }
 
 Export-ModuleMember -function Get-PESecurity
-
-
-
