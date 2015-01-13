@@ -23,22 +23,22 @@ C:\PS> Get-PESecurity -directory C:\Windows\System32\ -recursive
 ```
 Export results as a CSV
 
-C:\PS> ./Check-PESecurity.ps1 -directory C:\Windows\System32\ -recursive | Export-CSV file.csv
+C:\PS>  Get-PESecurity -directory C:\Windows\System32\ -recursive | Export-CSV file.csv
 ```
 ```
 Show results in a table
 
-C:\PS> ./Check-PESecurity.ps1 -directory C:\Windows\System32\ -recursive | Format-Table
+C:\PS> Get-PESecurity -directory C:\Windows\System32\ -recursive | Format-Table
 ```
 ```
 Show results in a table and sort by a column
 
-C:\PS> ./Check-PESecurity.ps1 -directory C:\Windows\System32\ -recursive | Format-Table | sort ASLR
+C:\PS> Get-PESecurity -directory C:\Windows\System32\ -recursive | Format-Table | sort ASLR
 ```
 ```
 Show results in a list
 
-C:\PS> ./Check-PESecurity.ps1 -directory C:\Windows\System32\ -recursive | Format-List
+C:\PS> Get-PESecurity -directory C:\Windows\System32\ -recursive | Format-List
 ```
 Links
 
