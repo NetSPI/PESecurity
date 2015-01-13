@@ -397,10 +397,10 @@ function Enumerate-Files
       $NTHeader = $PointerNtHeader -as $ImageNTHdrs64
     }
     $ARCH = $NTHeader.FileHeader.Machine.toString()
-    $DllCharacteristics = $NTHeader.OptionalHeader.DllCharacteristics.toString().Split(',').Trim()
+    $DllCharacteristics = $NTHeader.OptionalHeader.DllCharacteristics.toString().Split(',')
     foreach($DllCharacteristic in $DllCharacteristics)
     {
-      switch($DllCharacteristic){
+      switch($DllCharacteristic.Trim()){
         'DYNAMIC_BASE' 
         {
           $ASLR = $true
