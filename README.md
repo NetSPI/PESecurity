@@ -3,40 +3,22 @@ PEchecker
 
 Powershell script to check if an image (EXE/DLL) has been compiled with ASLR, DEP, and SafeSEH.
 
+Import-Module .\Get-PESecurity.psm1
+
 ```
 Check a single file
 
-C:\PS> ./Check-PESecurity.ps1 -file C:\Windows\System32\kernel32.dll
+C:\PS> Get-PESecurity -file C:\Windows\System32\kernel32.dll
 ```
 ```
 Check a directory for DLLs & EXEs
 
-C:\PS> ./Check-PESecurity.ps1 -directory C:\Windows\System32\
+C:\PS> Get-PESecurity -directory C:\Windows\System32\
 ```
 ```
 Check a directory for DLLs & EXEs recrusively
 
-C:\PS> ./Check-PESecurity.ps1 -directory C:\Windows\System32\ -recursive
-```
-```
-Check for only DLLs & EXEs that are not compiled with ASLR
-
-C:\PS> ./Check-PESecurity.ps1 -directory C:\Windows\System32\ -recursive -OnlyNoASLR
-```
-```
-Check for only DLLs & EXEs that are not compiled with DEP
-
-C:\PS> ./Check-PESecurity.ps1 -directory C:\Windows\System32\ -recursive -OnlyNoDEP
-```
-```
-Check for only DLLs & EXEs that are not compiled with SafeSEH
-
-C:\PS> ./Check-PESecurity.ps1 -directory C:\Windows\System32\ -recursive -OnlyNoSafeSEH
-```
-```
-Show results with full path names
-
-C:\PS> ./Check-PESecurity.ps1 -directory C:\Windows\System32\ -recursive -FullPath
+C:\PS> Get-PESecurity -directory C:\Windows\System32\ -recursive
 ```
 ```
 Export results as a CSV
