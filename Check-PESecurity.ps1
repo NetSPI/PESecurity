@@ -520,9 +520,9 @@ function EnumerateFiles {
             $NtHeader = [System.Runtime.InteropServices.Marshal]::PtrToStructure($PointerNtHeader, [Type] [PE+_IMAGE_NT_HEADERS32])
         }
         $ARCH = $NtHeader.FileHeader.Machine.toString()
-        $DllCharacteristics = $NtHeader.OptionalHeader.DllCharacteristics.toString().Split(',').Trim()
+        $DllCharacteristics = $NtHeader.OptionalHeader.DllCharacteristics.toString().Split(',')
         foreach($DllCharacteristic in $DllCharacteristics){
-            switch($DllCharacteristic){
+            switch($DllCharacteristic.Trim()){
                 "DYNAMIC_BASE" {$aslr = $true}
                 "NX_COMPAT" {$dep = $true}
                 "NO_SEH" {$seh = "N/A"}
