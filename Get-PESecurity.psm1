@@ -1,7 +1,7 @@
 ﻿<#
   # Author: Eric Gruber 2014, NetSPI
   .Synopsis
-   Updated module for pull security information from compiled Windows binaries. 
+   Updated module to pull security information from compiled Windows binaries. 
   .EXAMPLE
    Get-PESecurity -File C:\Windows\System32\cmd.exe
   .EXAMPLE
