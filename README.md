@@ -1,7 +1,7 @@
 PEchecker
 =========
 
-Powershell script to check if an image (EXE/DLL) has been compiled with ASLR, DEP, and SafeSEH.
+PowerShell script to check if an image (EXE/DLL) has been compiled with ASLR, DEP, SafeSEH, StrongNaming, and Authenticode.
 
 ```
 Import the module
