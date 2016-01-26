@@ -410,6 +410,23 @@ function Enumerate-Files
     }
     $ARCH = $NTHeader.FileHeader.Machine.toString()
     $DllCharacteristics = $NTHeader.OptionalHeader.DllCharacteristics.toString().Split(',')
+    $value = 0
+    if([int32]::TryParse($DllCharacteristics, [ref]$value)){
+
+        if($value -band 0x40){
+            $ASLR = $true
+        }
+
+        if($value -band 0x100){
+            $DEP = $true
+        }
+
+        if($value -band 0x400){
+            $SEH = 'N/A'
+        }
+
+    } else {
+
     foreach($DllCharacteristic in $DllCharacteristics)
     {
       switch($DllCharacteristic.Trim()){
@@ -426,6 +443,8 @@ function Enumerate-Files
           $SEH = 'N/A'
         }
       }
+    }
+
     }
     #Get Strongnaming Status
     $StrongNaming = Get-StrongNamingStatus $CurrentFile
