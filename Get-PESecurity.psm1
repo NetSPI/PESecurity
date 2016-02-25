@@ -401,6 +401,7 @@ function Enumerate-Files
         $Row.Authenticode = 'Unknown Format'
         $Row.StrongNaming = 'Unknown Format'
         $Row.SafeSEH = 'Unknown Format'
+		$Row.CFG = 'Unknown Format'
         $Table.Rows.Add($Row)
         Continue
     }
@@ -443,6 +444,7 @@ function Enumerate-Files
       $SEH = Get-SEHStatus $CurrentFile $NTHeader $PointerNtHeader $PEBaseAddr
     }
 
+	$CFG = Get-CFGStatus $NTHeader
     #Write everything to a DataTable
     $Row = $Table.NewRow()
     $Row.FileName = $CurrentFile
@@ -452,6 +454,7 @@ function Enumerate-Files
     $Row.Authenticode = $Authenticode
     $Row.StrongNaming = $StrongNaming
     $Row.SafeSEH = $SEH
+	$Row.CFG = $CFG
     $Table.Rows.Add($Row)
   }
 }
@@ -525,6 +528,26 @@ function Get-SEHStatus
     $SEH = $false
   }
   $SEH
+}
+
+function Get-CFGStatus
+{
+  param
+  (
+    [System.Object]
+    $NTHeader
+  )
+
+
+  if($NTHeader.OptionalHeader.DataDirectory[15].VirtualAddress -eq 0)
+  {
+    $CFG = $true
+  }
+  else
+  {
+	$CFG = $false
+  }
+  $CFG
 }
 
 function Get-StrongNamingStatus
