@@ -390,6 +390,10 @@ function Enumerate-Files
     $Handle = [System.Runtime.InteropServices.GCHandle]::Alloc($FileByteArray, 'Pinned')
     $PEBaseAddr = $Handle.AddrOfPinnedObject()
     $DosHeader = $PEBaseAddr -as $ImageDosHeader
+    if ($FileByteArray.Length -lt $DosHeader.e_lfanew)
+    {
+      continue
+    }
     $PointerNtHeader = [IntPtr] ($PEBaseAddr.ToInt64() + $DosHeader.e_lfanew)
     $NTHeader = $PointerNtHeader -as $ImageNTHdrs
     if ($NTHeader.OptionalHeader.Magic -eq 0){
@@ -408,6 +412,7 @@ function Enumerate-Files
     {
       $NTHeader = $PointerNtHeader -as $ImageNTHdrs64
     }
+    
     $ARCH = $NTHeader.FileHeader.Machine.toString()
     $DllCharacteristics = $NTHeader.OptionalHeader.DllCharacteristics.toString().Split(',')
     $value = 0
@@ -427,23 +432,23 @@ function Enumerate-Files
 
     } else {
 
-    foreach($DllCharacteristic in $DllCharacteristics)
-    {
-      switch($DllCharacteristic.Trim()){
-        'DYNAMIC_BASE'
-        {
-          $ASLR = $true
-        }
-        'NX_COMPAT'
-        {
-          $DEP = $true
-        }
-        'NO_SEH'
-        {
-          $SEH = 'N/A'
+      foreach($DllCharacteristic in $DllCharacteristics)
+      {
+        switch($DllCharacteristic.Trim()){
+          'DYNAMIC_BASE'
+          {
+            $ASLR = $true
+          }
+          'NX_COMPAT'
+          {
+            $DEP = $true
+          }
+          'NO_SEH'
+          {
+            $SEH = 'N/A'
+          }
         }
       }
-    }
 
     }
     #Get Strongnaming Status
