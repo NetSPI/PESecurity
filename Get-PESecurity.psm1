@@ -1,6 +1,7 @@
 ﻿<#
   # Author: Eric Gruber 2014, NetSPI
-  # Updated: Alex Verboon July 28.2017
+  # Updated: Alex Verboon July 28.2017, added Control Flow Guard information
+
   .Synopsis
    Updated module to pull security information from compiled Windows binaries.
   .EXAMPLE
