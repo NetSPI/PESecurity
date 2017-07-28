@@ -1,5 +1,6 @@
 ﻿<#
   # Author: Eric Gruber 2014, NetSPI
+  # Updated: Alex Verboon July 28.2017
   .Synopsis
    Updated module to pull security information from compiled Windows binaries.
   .EXAMPLE
@@ -133,6 +134,7 @@ function Get-PESecurity
       NO_SEH = 0x0400 # Image does not use SEH.  No SE handler may reside in this image
       NO_BIND = 0x0800 # Do not bind this image.
       WDM_DRIVER = 0x2000 # Driver uses WDM model
+      GUARD_CF = 0x4000 # image supports control flow guard
       TERMINAL_SERVER_AWARE = 0x8000
     } -Bitfield
 
@@ -343,6 +345,7 @@ function Get-PESecurity
     $Col5 = New-Object system.Data.DataColumn Authenticode, ([string])
     $Col6 = New-Object system.Data.DataColumn StrongNaming, ([string])
     $Col7 = New-Object system.Data.DataColumn SafeSEH, ([string])
+    $Col8 = New-Object system.Data.DataColumn ControlFlowGuard, ([string])
     $Table.columns.add($Col1)
     $Table.columns.add($Col2)
     $Table.columns.add($Col3)
@@ -350,6 +353,7 @@ function Get-PESecurity
     $Table.columns.add($Col5)
     $Table.columns.add($Col6)
     $Table.columns.add($Col7)
+    $Table.columns.add($Col8)
   }
   Process
   {
@@ -383,6 +387,7 @@ function Enumerate-Files
     $ASLR = $false
     $DEP = $false
     $SEH = $false
+    $ControlFlowGuard = $false
     $Authenticode = $false
     $StrongNaming = $false
 
@@ -405,6 +410,7 @@ function Enumerate-Files
         $Row.Authenticode = 'Unknown Format'
         $Row.StrongNaming = 'Unknown Format'
         $Row.SafeSEH = 'Unknown Format'
+        $Row.ControlFlowGuard = 'Unknown Format'
         $Table.Rows.Add($Row)
         Continue
     }
@@ -430,6 +436,10 @@ function Enumerate-Files
             $SEH = 'N/A'
         }
 
+        if($value -band 0x4000){
+            $ControlFlowGuard = $true
+        }
+
     } else {
 
       foreach($DllCharacteristic in $DllCharacteristics)
@@ -446,6 +456,10 @@ function Enumerate-Files
           'NO_SEH'
           {
             $SEH = 'N/A'
+          }
+          'GUARD_CF'
+          {
+            $ControlFlowGuard = $true
           }
         }
       }
@@ -476,6 +490,7 @@ function Enumerate-Files
     $Row.Authenticode = $Authenticode
     $Row.StrongNaming = $StrongNaming
     $Row.SafeSEH = $SEH
+    $Row.ControlFlowGuard = $ControlFlowGuard
     $Table.Rows.Add($Row)
   }
 }
