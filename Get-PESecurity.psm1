@@ -1,5 +1,7 @@
-﻿<#
+<#
   # Author: Eric Gruber 2014, NetSPI
+  # Updated: Alex Verboon July 28.2017, added Control Flow Guard information
+
   .Synopsis
    Updated module to pull security information from compiled Windows binaries.
   .EXAMPLE
@@ -340,12 +342,12 @@ function Get-PESecurity
     $Col1 = New-Object system.Data.DataColumn FileName, ([string])
     $Col2 = New-Object system.Data.DataColumn ARCH, ([string])
     $Col3 = New-Object system.Data.DataColumn ASLR, ([string])
-    $Col4 = New-Object system.Data.DataColumn HighentropyVA, ([string])
-    $Col5 = New-Object system.Data.DataColumn DEP, ([string])
-    $Col6 = New-Object system.Data.DataColumn Authenticode, ([string])
-    $Col7 = New-Object system.Data.DataColumn StrongNaming, ([string])
-    $Col8 = New-Object system.Data.DataColumn SafeSEH, ([string])
-    $Col9 = New-Object system.Data.DataColumn CFG, ([string])
+    $Col4 = New-Object system.Data.DataColumn DEP, ([string])
+    $Col5 = New-Object system.Data.DataColumn Authenticode, ([string])
+    $Col6 = New-Object system.Data.DataColumn StrongNaming, ([string])
+    $Col7 = New-Object system.Data.DataColumn SafeSEH, ([string])
+    $Col8 = New-Object system.Data.DataColumn ControlFlowGuard, ([string])
+    $Col9 = New-Object system.Data.DataColumn HighentropyVA, ([string])
     $Table.columns.add($Col1)
     $Table.columns.add($Col2)
     $Table.columns.add($Col3)
@@ -389,6 +391,7 @@ function Enumerate-Files
     $HighentropyVA = $false
     $DEP = $false
     $SEH = $false
+    $ControlFlowGuard = $false
     $Authenticode = $false
     $StrongNaming = $false
     $CFG = $false
@@ -413,7 +416,7 @@ function Enumerate-Files
         $Row.Authenticode = 'Unknown Format'
         $Row.StrongNaming = 'Unknown Format'
         $Row.SafeSEH = 'Unknown Format'
-        $Row.CFG = 'Unknown Format'
+        $Row.ControlFlowGuard = 'Unknown Format'
         $Table.Rows.Add($Row)
         Continue
     }
@@ -440,9 +443,10 @@ function Enumerate-Files
             $SEH = 'N/A'
         }
 
-        if ($value -band 0x4000){
-             $CFG = $true
+        if($value -band 0x4000){
+            $ControlFlowGuard = $true
         }
+
     } else {
 
       foreach($DllCharacteristic in $DllCharacteristics)
@@ -462,7 +466,7 @@ function Enumerate-Files
           }
           'GUARD_CF'
           {
-            $CFG = $true
+            $ControlFlowGuard = $true
           }
           'HIGH_ENTROPY_VA'
           {
@@ -493,12 +497,12 @@ function Enumerate-Files
     $Row.FileName = $CurrentFile
     $Row.ARCH = $ARCH
     $Row.ASLR = $ASLR
-    $Row.HighentropyVA = $HighentropyVA
     $Row.DEP = $DEP
     $Row.Authenticode = $Authenticode
     $Row.StrongNaming = $StrongNaming
     $Row.SafeSEH = $SEH
-    $Row.CFG = $CFG
+    $Row.ControlFlowGuard = $ControlFlowGuard
+    $Row.HighentropyVA = $HighentropyVA
     $Table.Rows.Add($Row)
   }
 }
