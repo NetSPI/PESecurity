@@ -426,6 +426,7 @@ function Enumerate-Files
     }
     
     $ARCH = $NTHeader.FileHeader.Machine.toString()
+    $FileCharacteristics = $NTHeader.FileHeader.Characteristics.toString().Split(',')
     $DllCharacteristics = $NTHeader.OptionalHeader.DllCharacteristics.toString().Split(',')
     $value = 0
     if([int32]::TryParse($DllCharacteristics, [ref]$value)){
@@ -475,6 +476,15 @@ function Enumerate-Files
         }
       }
 
+    }
+    foreach($FileCharacteristic in $FileCharacteristics){
+      switch($FileCharacteristic.Trim()){
+        'IMAGE_RELOCS_STRIPPED'
+        {
+          $ASLR = 'False (Relocation Table Stripped)'
+        }
+
+      }
     }
     #Get Strongnaming Status
     $StrongNaming = Get-StrongNamingStatus $CurrentFile
