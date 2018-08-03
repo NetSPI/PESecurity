@@ -341,13 +341,14 @@ function Get-PESecurity
     $Table = New-Object system.Data.DataTable 'table'
     $Col1 = New-Object system.Data.DataColumn FileName, ([string])
     $Col2 = New-Object system.Data.DataColumn ARCH, ([string])
-    $Col3 = New-Object system.Data.DataColumn ASLR, ([string])
-    $Col4 = New-Object system.Data.DataColumn DEP, ([string])
-    $Col5 = New-Object system.Data.DataColumn Authenticode, ([string])
-    $Col6 = New-Object system.Data.DataColumn StrongNaming, ([string])
-    $Col7 = New-Object system.Data.DataColumn SafeSEH, ([string])
-    $Col8 = New-Object system.Data.DataColumn ControlFlowGuard, ([string])
-    $Col9 = New-Object system.Data.DataColumn HighentropyVA, ([string])
+    $Col3 = New-Object system.Data.DataColumn DotNET, ([string])
+    $Col4 = New-Object system.Data.DataColumn ASLR, ([string])
+    $Col5 = New-Object system.Data.DataColumn DEP, ([string])
+    $Col6 = New-Object system.Data.DataColumn Authenticode, ([string])
+    $Col7 = New-Object system.Data.DataColumn StrongNaming, ([string])
+    $Col8 = New-Object system.Data.DataColumn SafeSEH, ([string])
+    $Col9 = New-Object system.Data.DataColumn ControlFlowGuard, ([string])
+    $Col10 = New-Object system.Data.DataColumn HighentropyVA, ([string])
     $Table.columns.add($Col1)
     $Table.columns.add($Col2)
     $Table.columns.add($Col3)
@@ -357,6 +358,7 @@ function Get-PESecurity
     $Table.columns.add($Col7)
     $Table.columns.add($Col8)
     $Table.columns.add($Col9)
+    $Table.columns.add($Col10)
   }
   Process
   {
@@ -387,6 +389,7 @@ function Enumerate-Files
 
   foreach ($CurrentFile in $Files)
   {
+    $DotNET = $false
     $ASLR = $false
     $HighentropyVA = $false
     $DEP = $false
@@ -394,8 +397,7 @@ function Enumerate-Files
     $ControlFlowGuard = $false
     $Authenticode = $false
     $StrongNaming = $false
-    $CFG = $false
-
+    
     $FileByteArray = [IO.File]::ReadAllBytes($CurrentFile)
     $Handle = [System.Runtime.InteropServices.GCHandle]::Alloc($FileByteArray, 'Pinned')
     $PEBaseAddr = $Handle.AddrOfPinnedObject()
@@ -410,6 +412,7 @@ function Enumerate-Files
         $Row = $Table.NewRow()
         $Row.FileName = $CurrentFile
         $Row.ARCH = 'Unknown Format'
+        $Row.DotNET = 'Unknown Format'
         $Row.ASLR = 'Unknown Format'
         $Row.HighentropyVA = 'Unknown Format'
         $Row.DEP = 'Unknown Format'
@@ -425,10 +428,16 @@ function Enumerate-Files
       $NTHeader = $PointerNtHeader -as $ImageNTHdrs64
     }
     
+
+    if($NTHeader.OptionalHeader.DataDirectory[14].VirtualAddress -ne 0) {
+      $DotNet = $true
+    }
+    
     $ARCH = $NTHeader.FileHeader.Machine.toString()
     $FileCharacteristics = $NTHeader.FileHeader.Characteristics.toString().Split(',')
     $DllCharacteristics = $NTHeader.OptionalHeader.DllCharacteristics.toString().Split(',')
     $value = 0
+    $ASLR = $false
     if([int32]::TryParse($DllCharacteristics, [ref]$value)){
         if($value -band 0x20){
             $HighentropyVA = $true
@@ -477,15 +486,36 @@ function Enumerate-Files
       }
 
     }
-    foreach($FileCharacteristic in $FileCharacteristics){
-      switch($FileCharacteristic.Trim()){
-        'IMAGE_RELOCS_STRIPPED'
-        {
-          $ASLR = 'False (Relocation Table Stripped)'
-        }
+    
+    if($ASLR){
+    
+      foreach($FileCharacteristic in $FileCharacteristics){
+        switch($FileCharacteristic.Trim()){
+          'IMAGE_RELOCS_STRIPPED'
+          {
+          
+            $Stripped = $true
+          }
 
+        }
+      }
+    
+
+      $OS = [Environment]::OSVersion
+      $WindowsCheck = $true
+      if(($OS.Version.Major -ge 6) -and ($OS.Version.Minor -ge 2) -and ($OS.Version.Build -ge 9200)){
+        $WindowsCheck = $false
+      }
+    
+      if($WindowsCheck){   
+        if (-not $DotNet -and $Stripped){
+          $ASLR = 'False (DYNAMICBASE Set And Relocation Table Stripped)'
+       
+        }
+       
       }
     }
+          
     #Get Strongnaming Status
     $StrongNaming = Get-StrongNamingStatus $CurrentFile
 
@@ -506,6 +536,7 @@ function Enumerate-Files
     $Row = $Table.NewRow()
     $Row.FileName = $CurrentFile
     $Row.ARCH = $ARCH
+    $Row.DotNET = $DotNET
     $Row.ASLR = $ASLR
     $Row.DEP = $DEP
     $Row.Authenticode = $Authenticode
