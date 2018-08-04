@@ -503,7 +503,7 @@ function Enumerate-Files
 
       $OS = [Environment]::OSVersion
       $WindowsCheck = $true
-      if(($OS.Version.Major -ge 6) -and ($OS.Version.Minor -ge 2) -and ($OS.Version.Build -ge 9200)){
+      if($OS.Version.Build -ge 9200){
         $WindowsCheck = $false
       }
     
