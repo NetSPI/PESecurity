@@ -31,7 +31,13 @@ function Get-PESecurity
     [Parameter(Mandatory = $false,
         ValueFromPipelineByPropertyName = $false,
     Position = 1)]
-    [Switch]$Recursive
+    [Switch]$Recursive,
+
+    #Skip Authenticode
+    [Parameter(Mandatory = $false,
+	    ValueFromPipelineByPropertyName = $false,
+    Position = 2)]
+    [Switch]$SkipAuthenticode
 
   )
 
@@ -211,7 +217,6 @@ function Get-PESecurity
       Characteristics = field 6 $ImageFileCharacteristics
     }
 
-
     $PeImageDataDir = struct $Mod PE.IMAGE_DATA_DIRECTORY @{
       VirtualAddress = field 0 UInt32
       Size = field 1 UInt32
@@ -362,14 +367,10 @@ function Get-PESecurity
   }
   Process
   {
-
-   
-
     $Files = Get-Files
     Enumerate-Files $Files $Table
 
     $Table
-
   }
   End
   {
@@ -397,8 +398,21 @@ function Enumerate-Files
     $ControlFlowGuard = $false
     $Authenticode = $false
     $StrongNaming = $false
-    
-    $FileByteArray = [IO.File]::ReadAllBytes($CurrentFile)
+
+    # Determine file length
+    $FileInfo = New-Object System.IO.FileInfo($CurrentFile)
+    $FileLength = $FileInfo.length
+    # Read the bytes
+    $FileStream = New-Object System.IO.FileStream($CurrentFile, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read)
+    $BinaryReader = New-Object System.IO.BinaryReader($FileStream)
+    # Pull a maximum of 1024 bytes from the file
+    $BytesToRead = [Math]::Min($FileLength, 1024)
+    # Read
+    $FileByteArray = $BinaryReader.ReadBytes( $BytesToRead )
+    # Cleanup
+    $BinaryReader.Close()
+    $FileStream.Close()
+
     $Handle = [System.Runtime.InteropServices.GCHandle]::Alloc($FileByteArray, 'Pinned')
     $PEBaseAddr = $Handle.AddrOfPinnedObject()
     $DosHeader = $PEBaseAddr -as $ImageDosHeader
@@ -427,12 +441,11 @@ function Enumerate-Files
     {
       $NTHeader = $PointerNtHeader -as $ImageNTHdrs64
     }
-    
 
     if($NTHeader.OptionalHeader.DataDirectory[14].VirtualAddress -ne 0) {
       $DotNet = $true
     }
-    
+
     $ARCH = $NTHeader.FileHeader.Machine.toString()
     $FileCharacteristics = $NTHeader.FileHeader.Characteristics.toString().Split(',')
     $DllCharacteristics = $NTHeader.OptionalHeader.DllCharacteristics.toString().Split(',')
@@ -456,9 +469,7 @@ function Enumerate-Files
         if($value -band 0x4000){
             $ControlFlowGuard = $true
         }
-
     } else {
-
       foreach($DllCharacteristic in $DllCharacteristics)
       {
         switch($DllCharacteristic.Trim()){
@@ -484,43 +495,40 @@ function Enumerate-Files
           }
         }
       }
-
     }
-    
+
     if($ASLR){
-    
       foreach($FileCharacteristic in $FileCharacteristics){
         switch($FileCharacteristic.Trim()){
           'IMAGE_RELOCS_STRIPPED'
           {
-          
             $Stripped = $true
           }
-
         }
       }
-    
 
       $OS = [Environment]::OSVersion
       $WindowsCheck = $true
       if($OS.Version.Build -ge 9200){
         $WindowsCheck = $false
       }
-    
-      if($WindowsCheck){   
+
+      if($WindowsCheck){
         if (-not $DotNet -and $Stripped){
           $ASLR = 'False (DYNAMICBASE Set And Relocation Table Stripped)'
-       
         }
-       
       }
     }
-          
+
     #Get Strongnaming Status
     $StrongNaming = Get-StrongNamingStatus $CurrentFile
 
     #Get Authenticode Status
-    $Authenticode = Get-AuthenticodeStatus $CurrentFile
+	$Authenticode = 'N/A'
+	if(!$SkipAuthenticode)
+	{
+		$Authenticode = Get-AuthenticodeStatus $CurrentFile
+	}
 
     if ($ARCH -eq 'AMD64')
     {
@@ -639,7 +647,6 @@ function Get-StrongNamingStatus
 }
 
 function Get-GS {
-
 }
 
 function Get-Files
