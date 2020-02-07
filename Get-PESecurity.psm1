@@ -519,6 +519,10 @@ function Enumerate-Files
         }
       }
     }
+    
+    if ($DotNET){
+    	$ControlFlowGuard = 'N/A'
+    }
 
     #Get Strongnaming Status
     $StrongNaming = Get-StrongNamingStatus $CurrentFile
