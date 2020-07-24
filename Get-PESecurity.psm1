@@ -526,10 +526,6 @@ function Enumerate-Files
       }
     }
     
-    if ($DotNET){
-    	$ControlFlowGuard = 'N/A'
-    }
-
     if ($DotNet) {
         $ControlFlowGuard = 'N/A'
     }
