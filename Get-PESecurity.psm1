@@ -323,6 +323,17 @@ function Get-PESecurity
       SecurityCookie = field 17 UInt32
       SEHandlerTable = field 18 UInt32
       SEHandlerCount = field 19 UInt32
+      GuardCFCheckFunctionPointer = field 20 UInt32
+      GuardCFDispatchFunctionPointer = field 21 UInt32 
+      GuardCFFunctionTable = field 22 UInt32 
+      GuardCFFunctionCount = field 23 UInt32 
+      GuardFlags = field 24 UInt32 
+      CodeIntegrity = field 25 UInt32 
+      GuardAddressTakenIatEntryTable = field 26 UInt32 
+      GuardAddressTakenIatEntryCount = field 27 UInt32 
+      GuardLongJumpTargetTable = field 28 UInt32 
+      GuardLongJumpTargetCount = field 29 UInt32 
+
     }
 
     $ImageNTHdrs = struct $Mod PE.IMAGE_NT_HEADERS @{
@@ -402,15 +413,10 @@ function Enumerate-Files
     # Determine file length
     $FileInfo = New-Object System.IO.FileInfo($CurrentFile)
     $FileLength = $FileInfo.length
-    # Read the bytes
+
     $FileStream = New-Object System.IO.FileStream($CurrentFile, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read)
-    $BinaryReader = New-Object System.IO.BinaryReader($FileStream)
-    # Pull a maximum of 1024 bytes from the file
-    $BytesToRead = [Math]::Min($FileLength, 1024)
-    # Read
-    $FileByteArray = $BinaryReader.ReadBytes( $BytesToRead )
-    # Cleanup
-    $BinaryReader.Close()
+    $FileByteArray = New-Object Byte[]($FileStream.Length)
+    $FileStream.Read($FileByteArray, 0, $FileStream.Length) | Out-Null
     $FileStream.Close()
 
     $Handle = [System.Runtime.InteropServices.GCHandle]::Alloc($FileByteArray, 'Pinned')
@@ -542,6 +548,7 @@ function Enumerate-Files
     {
       #Get SEH Status
       $SEH = Get-SEHStatus $CurrentFile $NTHeader $PointerNtHeader $PEBaseAddr
+
     }
 
     #Write everything to a DataTable
@@ -608,10 +615,11 @@ function Get-SEHStatus
     $SectionHeaders[$i] = [System.Runtime.InteropServices.Marshal]::PtrToStructure(([IntPtr] ($PointerSectionHeader.ToInt64() + ($i * [System.Runtime.InteropServices.Marshal]::SizeOf([System.Type] $ImageSectionHdrs)))), [System.Type] $ImageSectionHdrs)
   }
   $ConfigPointer = [IntPtr] ($PEBaseAddr.ToInt64() + $NTHeader.OptionalHeader.DataDirectory[10].VirtualAddress)
-  $ConfigPointer = Convert-RVAToFileOffset $ConfigPointer $SectionHeaders $PEBaseAddr
+  $ConfigPointer =  Convert-RVAToFileOffset $ConfigPointer
   $ConfigDirectory = [System.Runtime.InteropServices.Marshal]::PtrToStructure([IntPtr] $ConfigPointer, [System.Type] $ImageConfigDirectory)
   $SEHandlerTable = $ConfigDirectory.SEHandlerTable
   $SEHandlerCount = $ConfigDirectory.SEHandlerCount
+
   if($NTHeader.OptionalHeader.DataDirectory[10].VirtualAddress -eq 0)
   {
     $SEH = $false
@@ -698,7 +706,6 @@ function Convert-RVAToFileOffset
     if ((($Rva.ToInt64() - $PEBaseAddr.ToInt64()) -ge $Section.VirtualAddress) -and (($Rva.ToInt64() - $PEBaseAddr.ToInt64()) -lt ($Section.VirtualAddress + $Section.VirtualSize)))
     {
       return [IntPtr] ($Rva.ToInt64() - ($Section.VirtualAddress - $Section.PointerToRawData))
-      Write-Host $Section
     }
   }
 
