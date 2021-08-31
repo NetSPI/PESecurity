@@ -544,6 +544,10 @@ function Enumerate-Files
     {
       $SEH = 'N/A'
     }
+    elseif ($ARCH -ne 'AMD64')
+    {
+      $HighentropyVA = 'N/A'
+    }
     elseif ($SEH -ne 'N/A')
     {
       #Get SEH Status
