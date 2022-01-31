@@ -544,11 +544,11 @@ function Enumerate-Files
     {
       $SEH = 'N/A'
     }
-    elseif ($ARCH -ne 'AMD64')
+    if ($ARCH -ne 'AMD64')
     {
       $HighentropyVA = 'N/A'
     }
-    elseif ($SEH -ne 'N/A')
+    if ($SEH -ne 'N/A')
     {
       #Get SEH Status
       $SEH = Get-SEHStatus $CurrentFile $NTHeader $PointerNtHeader $PEBaseAddr
