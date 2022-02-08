@@ -40,14 +40,19 @@ function Get-PESecurity
     [Switch]$SkipAuthenticode
 
   )
-
+  
   Begin
   {
     $ModuleName = 'Win32'
-    $DynAssembly = New-Object Reflection.AssemblyName($ModuleName)
-    $Domain = [AppDomain]::CurrentDomain
-    $AssemblyBuilder = $Domain.DefineDynamicAssembly($DynAssembly, 'Run')
-    $Mod = $AssemblyBuilder.DefineDynamicModule($ModuleName, $false)
+    $AssemblyName   = [System.Reflection.AssemblyName]::new(${ModuleName})
+    $AssemblyAccess = [System.Reflection.Emit.AssemblyBuilderAccess]::Run
+    if($PSVersionTable['PSEdition'] -eq 'Core') {
+       $AssemblyBuilder = [System.Reflection.Emit.AssemblyBuilder]::DefineDynamicAssembly($AssemblyName, $AssemblyAccess)
+    } else
+    {
+        $AssemblyBuilder = [AppDomain]::CurrentDomain.DefineDynamicAssembly($AssemblyName, $AssemblyAccess)
+    }
+    $Mod = $AssemblyBuilder.DefineDynamicModule($ModuleName)
 
     $ImageDosSignature = enumerate $Mod PE.IMAGE_DOS_SIGNATURE UInt16 @{
       DOS_SIGNATURE = 0x5A4D
@@ -544,11 +549,11 @@ function Enumerate-Files
     {
       $SEH = 'N/A'
     }
-    elseif ($ARCH -ne 'AMD64')
+    if ($ARCH -ne 'AMD64')
     {
       $HighentropyVA = 'N/A'
     }
-    elseif ($SEH -ne 'N/A')
+    if ($SEH -ne 'N/A')
     {
       #Get SEH Status
       $SEH = Get-SEHStatus $CurrentFile $NTHeader $PointerNtHeader $PEBaseAddr
